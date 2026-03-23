@@ -58,16 +58,13 @@ class AkaionBackendClient:
     
     def poll_tasks(self) -> List[Dict[str, Any]]:
         """
-        Recupera i task in pending dal cloud
+        Recupera i task in pending dal cloud (nuovo endpoint /api/v1/runner/tasks/poll)
         
         Returns:
             List di task da eseguire
         """
         try:
-            response = self.client.get(
-                "/v1/runner/tasks/poll",
-                params={"runner_id": self.runner_id}
-            )
+            response = self.client.get("/api/v1/runner/tasks/poll")
             
             if response.status_code == 200:
                 data = response.json()
@@ -137,30 +134,39 @@ class AkaionBackendClient:
         task_id: str,
         result: Any,
         success: bool = True,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        output: Optional[str] = None,
+        files_created: Optional[List[str]] = None,
+        execution_time: Optional[float] = None
     ) -> bool:
         """
-        Invia il risultato di un task completato
+        Invia il risultato di un task completato (nuovo endpoint /api/v1/runner/tasks/result)
         
         Args:
             task_id: ID del task
-            result: Risultato dell'esecuzione
+            result: Risultato dell'esecuzione (deprecato, usa output)
             success: Se l'esecuzione è stata successful
             error: Errore eventuale
+            output: Output dell'esecuzione
+            files_created: Lista di file creati
+            execution_time: Tempo di esecuzione in secondi
         """
         try:
             payload = {
                 "task_id": task_id,
-                "runner_id": self.runner_id,
                 "success": success,
-                "result": result
+                "output": output or str(result)
             }
             
             if error:
                 payload["error"] = error
+            if files_created:
+                payload["files_created"] = files_created
+            if execution_time is not None:
+                payload["execution_time"] = execution_time
             
             response = self.client.post(
-                f"/v1/runner/tasks/{task_id}/result",
+                "/api/v1/runner/tasks/result",
                 json=payload
             )
             
@@ -170,15 +176,19 @@ class AkaionBackendClient:
             logger.error(f"Error submitting task result: {e}")
             return False
     
-    def send_heartbeat(self, status: Dict[str, Any]) -> bool:
-        """Invia heartbeat al cloud"""
+    def send_heartbeat(self, status: Dict[str, Any], metrics: Optional[Dict[str, Any]] = None) -> bool:
+        """Invia heartbeat al cloud (nuovo endpoint /api/v1/runner/heartbeat)"""
         try:
+            payload = {
+                "runner_id": self.runner_id,
+                "status": status
+            }
+            if metrics:
+                payload["metrics"] = metrics
+            
             response = self.client.post(
-                "/v1/runner/heartbeat",
-                json={
-                    "runner_id": self.runner_id,
-                    "status": status
-                }
+                "/api/v1/runner/heartbeat",
+                json=payload
             )
             
             return response.status_code == 200
@@ -267,6 +277,53 @@ class AIBackendClient(AkaionBackendClient):
             runner_id=runner_id,
             timeout=timeout
         )
+    
+    def register_runner(
+        self,
+        runner_name: str,
+        machine_id: str,
+        capabilities: List[str],
+        system_info: Optional[Dict[str, Any]] = None,
+        callback_url: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Register runner with the AI backend
+        
+        Args:
+            runner_name: Name of this runner
+            machine_id: Unique machine identifier
+            capabilities: List of capabilities (e.g., ["python", "powerpoint", "filesystem"])
+            system_info: System information (OS, version, etc.)
+            callback_url: Optional callback URL for async notifications
+            
+        Returns:
+            Registration response with runner_id and polling info
+        """
+        try:
+            response = self.client.post(
+                "/api/v1/runner/register",
+                json={
+                    "runner_name": runner_name,
+                    "machine_id": machine_id,
+                    "capabilities": capabilities,
+                    "system_info": system_info or {},
+                    "callback_url": callback_url
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Update runner_id for future requests
+                self.runner_id = data.get("runner_id")
+                self.client.headers["X-Runner-ID"] = self.runner_id
+                return data
+            else:
+                logger.error(f"Runner registration failed: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error registering runner: {e}")
+            return None
     
     def runner_execute(
         self,
