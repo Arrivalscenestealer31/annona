@@ -133,7 +133,7 @@ class ConfigManager:
                 }
             },
             "tools": {
-                "enabled": ["filesystem", "shell"]
+                "enabled": ["filesystem", "shell", "document_reader", "explorer"]
             },
             "logging": {
                 "level": "INFO",

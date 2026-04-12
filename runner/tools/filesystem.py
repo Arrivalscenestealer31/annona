@@ -3,8 +3,9 @@ Filesystem Tool
 
 Tool per operazioni sul filesystem locale.
 """
+import fnmatch
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from loguru import logger
 
 from .base import Tool
@@ -12,17 +13,20 @@ from .base import Tool
 
 class FilesystemTool(Tool):
     """Tool per operazioni filesystem"""
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(
             name="filesystem",
-            description="Perform filesystem operations (read, write, list files)",
+            description=(
+                "Perform filesystem operations: read, write, list, exists, delete, search. "
+                "'search' finds files by name glob pattern under a directory."
+            ),
             parameters={
                 "type": "object",
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "enum": ["read", "write", "list", "exists", "delete"],
+                        "enum": ["read", "write", "list", "exists", "delete", "search"],
                         "description": "Operation to perform"
                     },
                     "path": {
@@ -32,14 +36,30 @@ class FilesystemTool(Tool):
                     "content": {
                         "type": "string",
                         "description": "Content to write (for write operation)"
+                    },
+                    "pattern": {
+                        "type": "string",
+                        "description": "Glob pattern for search, e.g. '*.pdf' or '*report*'"
+                    },
+                    "recursive": {
+                        "type": "boolean",
+                        "description": "For search: recurse into subdirectories (default: true)"
                     }
                 },
                 "required": ["operation", "path"]
             }
         )
         self.config = config
-    
-    def execute(self, operation: str, path: str, content: str = None, **kwargs) -> Any:
+
+    def execute(
+        self,
+        operation: str,
+        path: str,
+        content: str = None,
+        pattern: str = "*",
+        recursive: bool = True,
+        **kwargs
+    ) -> Any:
         """Esegue un'operazione filesystem"""
         target_path = Path(path).expanduser().resolve()
         
@@ -47,21 +67,24 @@ class FilesystemTool(Tool):
         
         if operation == "read":
             return self._read_file(target_path)
-        
+
         elif operation == "write":
             if content is None:
                 raise ValueError("Content required for write operation")
             return self._write_file(target_path, content)
-        
+
         elif operation == "list":
             return self._list_directory(target_path)
-        
+
         elif operation == "exists":
             return self._check_exists(target_path)
-        
+
         elif operation == "delete":
             return self._delete_path(target_path)
-        
+
+        elif operation == "search":
+            return self._search_files(target_path, pattern, recursive)
+
         else:
             raise ValueError(f"Unknown operation: {operation}")
     
@@ -116,14 +139,32 @@ class FilesystemTool(Tool):
         """Elimina file o directory"""
         if not path.exists():
             raise FileNotFoundError(f"Path not found: {path}")
-        
+
         if path.is_file():
             path.unlink()
         elif path.is_dir():
             import shutil
             shutil.rmtree(path)
-        
+
         return {
             "success": True,
             "path": str(path)
         }
+
+    def _search_files(self, path: Path, pattern: str, recursive: bool) -> List[Dict[str, Any]]:
+        """Cerca file per nome/glob pattern"""
+        if not path.is_dir():
+            raise ValueError(f"Not a directory: {path}")
+
+        results = []
+        glob_fn = path.rglob if recursive else path.glob
+        for match in sorted(glob_fn(pattern)):
+            if match.is_file():
+                stat = match.stat()
+                results.append({
+                    "name": match.name,
+                    "path": str(match),
+                    "size_mb": round(stat.st_size / (1024 * 1024), 4),
+                    "modified": stat.st_mtime,
+                })
+        return results

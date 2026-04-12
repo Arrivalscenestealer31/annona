@@ -359,41 +359,283 @@ Return the result in a structured format.""".format(
         prompt: str,
         context: Dict[str, Any],
         tools,
-        permissions
+        permissions,
+        max_iterations: int = 10
     ) -> Any:
         """
-        Ragiona su un task e lo esegue usando tools
-        
-        Args:
-            prompt: Task da eseguire
-            context: Contesto addizionale
-            tools: ToolRegistry
-            permissions: PermissionManager
-            
-        Returns:
-            Risultato del reasoning ed esecuzione
+        Agentic loop: ragiona sul task ed esegue tools iterativamente.
+
+        - Per provider 'akaion':    usa il backend /runner/agent/turn (LLM cloud, tool exec locale)
+        - Per provider 'anthropic': usa il native tool-use di Claude direttamente
+        - Per altri provider:       fallback a chat completion senza tool use
         """
-        # Costruisci prompt con contesto
-        system_prompt = f"""You are an advanced AI agent with reasoning capabilities.
+        if self.provider == "akaion":
+            return self._agentic_loop_akaion(prompt, context, tools, permissions, max_iterations)
+        elif self.provider == "anthropic":
+            return self._agentic_loop_anthropic(prompt, context, tools, permissions, max_iterations)
+        else:
+            return self._agentic_loop_generic(prompt, context, tools)
 
-Available tools: {', '.join(tools.list_tools())}
-Context: {context}
+    def _agentic_loop_akaion(
+        self,
+        prompt: str,
+        context: Dict[str, Any],
+        tools,
+        permissions,
+        max_iterations: int,
+    ) -> Any:
+        """
+        Agentic loop che usa il backend Akaion come LLM proxy.
 
-Task: {prompt}
+        Il runner mantiene lo stato (messages array).
+        Ad ogni iterazione:
+          1. Invia messages + tool schemas → POST /api/v1/runner/agent/turn
+          2. Backend chiama Claude con tool use nativo
+          3. Se stop_reason == "tool_use": esegui i tool localmente, aggiungi risultati, ripeti
+          4. Se stop_reason == "end_turn": restituisci la risposta finale
+        """
+        import json
 
-Think step by step about how to accomplish this task using the available tools.
-Always check permissions before executing actions."""
-        
+        # Build tool schemas for the backend (Anthropic format)
+        tool_schemas: List[Dict[str, Any]] = []
+        if tools:
+            for schema in tools.get_all_schemas():
+                tool_schemas.append({
+                    "name": schema["name"],
+                    "description": schema["description"],
+                    "input_schema": schema["parameters"],
+                })
+
+        # System prompt with context
+        system_prompt = (
+            "You are an advanced local agent running on the user's machine. "
+            "You have access to tools to explore the filesystem, read documents of any format "
+            "(PDF, DOCX, XLSX, CSV, code files), execute shell commands, and analyze content. "
+            "When given a task, think step by step and use the appropriate tools. "
+            "Be thorough: explore before reading, read before summarizing. "
+            f"Context: {json.dumps(context) if context else 'none'}"
+        )
+
+        # Initial user message
+        messages: List[Dict[str, Any]] = [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": prompt}],
+            }
+        ]
+
+        runner_id = self.client.runner_id or "unknown"  # type: ignore
+        tool_call_log: List[Dict[str, Any]] = []
+        final_response = ""
+
+        for iteration in range(max_iterations):
+            logger.info(f"Akaion agent turn {iteration + 1}/{max_iterations}")
+
+            turn_result = self.client.runner_agent_turn(  # type: ignore
+                runner_id=runner_id,
+                messages=messages,
+                tools=tool_schemas,
+                system_prompt=system_prompt,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+
+            if not turn_result:
+                logger.error("runner_agent_turn returned None — aborting loop")
+                break
+
+            stop_reason = turn_result.get("stop_reason", "end_turn")
+            content_blocks = turn_result.get("content", [])
+
+            # Collect text and tool_use blocks
+            tool_use_blocks = []
+            for block in content_blocks:
+                if block.get("type") == "text":
+                    final_response = block.get("text", "")
+                elif block.get("type") == "tool_use":
+                    tool_use_blocks.append(block)
+
+            if stop_reason == "end_turn" or not tool_use_blocks:
+                break
+
+            # Execute tool calls locally
+            tool_results = []
+            for tu in tool_use_blocks:
+                tool_name = tu.get("name")
+                tool_input = tu.get("input") or {}
+                tu_id = tu.get("id")
+
+                logger.info(f"Executing tool: {tool_name} {tool_input}")
+
+                if permissions and not permissions.check_tool_permission(tool_name, tool_input):
+                    result_content = {"error": f"Permission denied for tool: {tool_name}"}
+                    is_error = True
+                else:
+                    try:
+                        tool_obj = tools.get_tool(tool_name)
+                        result_content = tool_obj.execute(**tool_input)
+                        is_error = False
+                    except Exception as e:
+                        result_content = {"error": str(e)}
+                        is_error = True
+
+                tool_call_log.append({
+                    "tool": tool_name,
+                    "input": tool_input,
+                    "result": result_content,
+                    "error": is_error,
+                })
+
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tu_id,
+                    "content": json.dumps(result_content),
+                    "is_error": is_error,
+                })
+
+            # Append assistant turn (with tool_use blocks) + user turn (with tool results)
+            messages.append({"role": "assistant", "content": content_blocks})
+            messages.append({"role": "user", "content": tool_results})
+
+        return {
+            "response": final_response,
+            "iterations": iteration + 1,
+            "tool_calls": tool_call_log,
+        }
+
+    def _agentic_loop_anthropic(
+        self,
+        prompt: str,
+        context: Dict[str, Any],
+        tools,
+        permissions,
+        max_iterations: int
+    ) -> Any:
+        """
+        Agentic loop con Anthropic tool use nativo.
+        Ciclo: send → ricevi tool_use → esegui → send results → ripeti.
+        """
+        import json
+
+        # Build tool schemas for Claude
+        tool_schemas = tools.get_all_schemas() if tools else []
+        anthropic_tools = [
+            {
+                "name": t["name"],
+                "description": t["description"],
+                "input_schema": t["parameters"]
+            }
+            for t in tool_schemas
+        ]
+
+        system_prompt = (
+            "You are an advanced local agent running on the user's machine. "
+            "You have access to tools to explore the filesystem, read documents of any format "
+            "(PDF, DOCX, XLSX, CSV, code files), execute shell commands, and analyze content. "
+            "When given a task, think step by step and use the appropriate tools. "
+            "Be thorough: explore before reading, read before summarizing. "
+            f"Context: {json.dumps(context) if context else 'none'}"
+        )
+
+        messages = [{"role": "user", "content": prompt}]
+        tool_call_log = []
+        final_response = ""
+
+        for iteration in range(max_iterations):
+            logger.info(f"Agent iteration {iteration + 1}/{max_iterations}")
+
+            kwargs: Dict[str, Any] = {
+                "model": self.model,
+                "system": system_prompt,
+                "messages": messages,
+                "max_tokens": self.max_tokens,
+                "temperature": self.temperature,
+            }
+            if anthropic_tools:
+                kwargs["tools"] = anthropic_tools
+
+            response = self.client.messages.create(**kwargs)  # type: ignore
+
+            # Check stop reason
+            stop_reason = response.stop_reason
+
+            # Collect text and tool use blocks
+            tool_use_blocks = []
+            text_parts = []
+            for block in response.content:
+                if block.type == "text":
+                    text_parts.append(block.text)
+                elif block.type == "tool_use":
+                    tool_use_blocks.append(block)
+
+            if text_parts:
+                final_response = " ".join(text_parts)
+
+            if stop_reason == "end_turn" or not tool_use_blocks:
+                # Done
+                break
+
+            # Execute tool calls
+            tool_results = []
+            for tu in tool_use_blocks:
+                tool_name = tu.name
+                tool_input = tu.input if hasattr(tu, "input") else {}
+
+                logger.info(f"Calling tool: {tool_name} with {tool_input}")
+
+                # Permission check
+                if permissions and not permissions.check_tool_permission(tool_name, tool_input):
+                    result_content = {"error": f"Permission denied for tool: {tool_name}"}
+                    is_error = True
+                else:
+                    try:
+                        tool_obj = tools.get_tool(tool_name)
+                        result_content = tool_obj.execute(**tool_input)
+                        is_error = False
+                    except Exception as e:
+                        result_content = {"error": str(e)}
+                        is_error = True
+
+                tool_call_log.append({
+                    "tool": tool_name,
+                    "input": tool_input,
+                    "result": result_content,
+                    "error": is_error,
+                })
+
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tu.id,
+                    "content": json.dumps(result_content),
+                    "is_error": is_error,
+                })
+
+            # Append assistant turn + tool results
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user", "content": tool_results})
+
+        return {
+            "response": final_response,
+            "iterations": iteration + 1,
+            "tool_calls": tool_call_log,
+        }
+
+    def _agentic_loop_generic(
+        self,
+        prompt: str,
+        context: Dict[str, Any],
+        tools
+    ) -> Any:
+        """Fallback per provider senza tool use nativo"""
+        system_prompt = (
+            f"You are an advanced AI agent.\n"
+            f"Available tools: {', '.join(tools.list_tools()) if tools else 'none'}\n"
+            f"Context: {context}\n\n"
+            "Think step by step and describe what you would do to accomplish the task."
+        )
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ]
-        
         response = self.chat_completion(messages)
-        
-        # TODO: Implementare tool calling e execution loop
-        # Per ora ritorniamo il reasoning
-        return {
-            "reasoning": response,
-            "context": context
-        }
+        return {"response": response, "tool_calls": []}

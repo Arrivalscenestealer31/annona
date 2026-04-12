@@ -10,6 +10,8 @@ from .base import Tool
 from .filesystem import FilesystemTool
 from .shell import ShellTool
 from .browser import BrowserTool
+from .document_reader import DocumentReaderTool
+from .explorer import ExplorerTool
 
 
 class ToolRegistry:
@@ -27,12 +29,18 @@ class ToolRegistry:
         """Registra i tools built-in"""
         if "filesystem" in enabled:
             self.register(FilesystemTool(self.config))
-        
+
         if "shell" in enabled:
             self.register(ShellTool(self.config))
-        
+
         if "browser" in enabled:
             self.register(BrowserTool(self.config))
+
+        if "document_reader" in enabled:
+            self.register(DocumentReaderTool(self.config))
+
+        if "explorer" in enabled:
+            self.register(ExplorerTool(self.config))
     
     def register(self, tool: Tool):
         """Registra un nuovo tool"""

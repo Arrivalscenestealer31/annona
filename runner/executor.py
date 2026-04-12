@@ -44,16 +44,19 @@ class TaskExecutor:
         # Routing per tipo di task
         if task_type == "command":
             return self._execute_command(payload)
-        
+
         elif task_type == "tool":
             return self._execute_tool(payload)
-        
+
         elif task_type == "ai_task":
             return self._execute_ai_task(payload)
-        
+
+        elif task_type == "explore":
+            return self._execute_explore(payload)
+
         elif task_type == "workflow":
             return self._execute_workflow(payload)
-        
+
         else:
             raise ValueError(f"Unknown task type: {task_type}")
     
@@ -121,6 +124,38 @@ class TaskExecutor:
             "result": result
         }
     
+    def _execute_explore(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Esplora una directory / legge documenti tramite agentic loop.
+        Payload: { prompt, path, context? }
+        """
+        prompt = payload.get("prompt")
+        path = payload.get("path")
+        context = payload.get("context", {})
+
+        if not prompt:
+            raise ValueError("No prompt provided for explore task")
+
+        # Inject path into prompt if given
+        if path:
+            prompt = f"Path: {path}\n\nTask: {prompt}"
+            context["working_path"] = path
+
+        logger.info(f"Executing explore task: {prompt[:80]}...")
+
+        result = self.ai_client.reason_and_execute(
+            prompt=prompt,
+            context=context,
+            tools=self.tools,
+            permissions=self.permissions,
+        )
+
+        return {
+            "type": "explore_result",
+            "prompt": prompt,
+            "result": result,
+        }
+
     def _execute_workflow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Esegue un workflow multi-step"""
         steps = payload.get("steps", [])

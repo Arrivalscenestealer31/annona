@@ -325,6 +325,60 @@ class AIBackendClient(AkaionBackendClient):
             logger.error(f"Error registering runner: {e}")
             return None
     
+    def runner_agent_turn(
+        self,
+        runner_id: str,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        One turn of the agentic loop via the backend's /runner/agent/turn endpoint.
+
+        Sends the full conversation history + tool schemas.
+        Returns { content: [...], stop_reason, model, tokens_used } or None on error.
+
+        content blocks:
+          - { type: "text",     text: "..." }
+          - { type: "tool_use", id: "...", name: "...", input: {...} }
+        """
+        try:
+            payload: Dict[str, Any] = {
+                "runner_id": runner_id,
+                "messages": messages,
+                "tools": tools or [],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if system_prompt:
+                payload["system_prompt"] = system_prompt
+            if model:
+                payload["model"] = model
+
+            response = self.client.post(
+                "/api/v1/runner/agent/turn",
+                json=payload,
+                headers={
+                    **dict(self.client.headers),
+                    "X-Runner-ID": runner_id,
+                },
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(
+                    f"runner_agent_turn failed: {response.status_code} — {response.text}"
+                )
+                return None
+
+        except Exception as e:
+            logger.error(f"runner_agent_turn error: {e}")
+            return None
+
     def runner_execute(
         self,
         command: str,
