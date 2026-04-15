@@ -41,7 +41,14 @@ cryptography==42.0.7
 # Logging
 loguru==0.7.2
 
+# Local API server (brain + sync UI)
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
 # Testing (dev)
 pytest==8.2.0
 pytest-asyncio==0.23.6
 pytest-cov==5.0.0
+
+# typer
+typer

@@ -1,27 +1,29 @@
 #!/bin/bash
 
 # Akaion Runner - Startup Script
+# Usa sempre l'interprete del venv direttamente per evitare conflitti con alias shell
 
-echo "🚀 Starting Akaion Runner..."
+set -e
 
-# Check if virtual environment exists
-if [ ! -d "env" ]; then
-    echo "❌ Virtual environment not found. Run install.sh first."
-    exit 1
+PYTHON="$(dirname "$0")/env/bin/python3"
+
+echo "Starting Akaion Runner..."
+
+if [ ! -f "$PYTHON" ]; then
+    echo "Virtual environment not found. Creating..."
+    python3 -m venv env
+    env/bin/pip install -r requirements.txt -q
 fi
-
-# Activate virtual environment
-source env/bin/activate
 
 # Check if configured
 if [ ! -f "$HOME/.akaion/auth.json" ]; then
-    echo "⚠️  Runner not configured. Running setup..."
-    python cli.py login
-    python cli.py init
+    echo "Runner not configured. Running setup..."
+    "$PYTHON" cli.py login
+    "$PYTHON" cli.py init --no-interactive
 fi
 
-# Start runner in daemon mode
-echo "🔄 Starting daemon..."
-python cli.py run --daemon
+PORT="${PORT:-7070}"
+BRAIN_DIR="${BRAIN_DIR:-$HOME/akaion-brain}"
 
-deactivate
+echo "Port: $PORT  Brain: $BRAIN_DIR"
+exec "$PYTHON" cli.py run --port "$PORT" --brain-dir "$BRAIN_DIR"

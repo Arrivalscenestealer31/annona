@@ -2,6 +2,7 @@
 Runner Daemon
 
 Main daemon che fa polling dal cloud ed esegue i task.
+Avvia anche un server FastAPI locale su :port per la UI Tauri.
 """
 import asyncio
 import os
@@ -16,17 +17,30 @@ from .config import ConfigManager
 from .cloud_client import CloudClient
 from .executor import TaskExecutor
 from .banner import print_runner_banner, print_startup_info
+from .brain.manager import BrainManager
+from .sync.engine import SyncEngine
+from .local_api import LocalAPIServer
+
+DEFAULT_BRAIN_DIR = Path.home() / "akaion-brain"
+DEFAULT_LOCAL_PORT = 7070
 
 
 class RunnerDaemon:
     """Daemon principale del runner"""
-    
-    def __init__(self, config: Dict[str, Any], dev_mode: bool = False):
+
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        dev_mode: bool = False,
+        brain_dir: Optional[Path] = None,
+        local_port: int = DEFAULT_LOCAL_PORT,
+    ):
         self.config = config
         self.dev_mode = dev_mode
         self.running = False
         self.tasks_executed = 0
-        
+        self.local_port = local_port
+
         # Setup logging
         self._setup_logging()
         
@@ -44,11 +58,25 @@ class RunnerDaemon:
         
         # Executor
         self.executor = TaskExecutor(config)
-        
+
         # Polling config
         self.polling_interval = config.get("cloud", {}).get("polling_interval", 5)
         self.max_concurrent = config.get("runner", {}).get("max_concurrent_tasks", 3)
-        
+
+        # Brain + Sync
+        _brain_dir = brain_dir or Path(
+            config.get("brain", {}).get("dir", str(DEFAULT_BRAIN_DIR))
+        )
+        self.brain = BrainManager(_brain_dir)
+        self.sync = SyncEngine(
+            brain=self.brain,
+            cot_url=os.getenv("AKAION_COT_URL", "https://cot.akaion.com"),
+            auth=self.auth_manager,
+        )
+
+        # Local API server (Tauri UI)
+        self.local_api = LocalAPIServer(self.brain, self.sync, auth=self.auth_manager, port=local_port)
+
         # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -92,7 +120,10 @@ class RunnerDaemon:
     def start_daemon(self):
         """Avvia il daemon in modalità persistente"""
         self.running = True
-        
+
+        # Avvia local API server in background thread
+        self.local_api.start()
+
         # Print beautiful banner
         print_runner_banner()
         
@@ -246,8 +277,10 @@ class RunnerDaemon:
         
         self.running = False
         logger.info("🛑 Runner stopped")
-        
+
         # Cleanup
+        self.local_api.stop()
+        self.brain.close()
         self.cloud_client.close()
         
         logger.info(f"📊 Total tasks executed: {self.tasks_executed}")

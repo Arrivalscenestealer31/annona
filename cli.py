@@ -160,27 +160,29 @@ def run(
     daemon: bool = typer.Option(True, "--daemon/--once", "-d/-o", help="Run as daemon or execute once"),
     dev: bool = typer.Option(False, "--dev", help="Development mode with verbose logging"),
     task: Optional[str] = typer.Option(None, "--task", "-t", help="Execute specific task (once mode)"),
+    port: int = typer.Option(7070, "--port", help="Porta del server API locale (default: 7070)"),
+    brain_dir: Optional[Path] = typer.Option(None, "--brain-dir", help="Directory del brain locale (default: ~/akaion-brain)"),
 ):
     """
     🚀 Avvia il runner
     """
     try:
-        # Verifica autenticazione
+        # Verifica autenticazione (non bloccante — si può autenticare dall'app Tauri)
         auth_manager = AuthManager()
         if not auth_manager.is_authenticated():
-            console.print("❌ [red]Not authenticated. Run 'akaion login' first.[/red]")
-            raise typer.Exit(1)
-        
+            console.print("⚠️  [yellow]Non autenticato — avvio in modalità locale.[/yellow]")
+            console.print("   Apri l'app e fai login, oppure usa 'akaion login'.")
+
         # Carica config
         config_manager = ConfigManager()
         if not config_manager.config_exists():
             console.print("❌ [red]Configuration not found. Run 'akaion init' first.[/red]")
             raise typer.Exit(1)
-        
+
         config = config_manager.load_config()
-        
+
         # Crea e avvia runner
-        runner = RunnerDaemon(config, dev_mode=dev)
+        runner = RunnerDaemon(config, dev_mode=dev, brain_dir=brain_dir, local_port=port)
         
         if daemon:
             console.print("🚀 [green]Starting Akaion Runner daemon...[/green]")
