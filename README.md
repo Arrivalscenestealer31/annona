@@ -1,5 +1,9 @@
 # Akaion Runner
 
+[![release](https://img.shields.io/github/v/release/Akaion-repos/akaion-app-runner?include_prereleases&label=release)](https://github.com/Akaion-repos/akaion-app-runner/releases)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
+
 Local-first second brain. A markdown vault, a SQLite index, a small FastAPI
 server, and a desktop UI you open in your browser at `http://127.0.0.1:7070`.
 Works offline. Optionally pushes notes to an Akaion-compatible cloud — never
@@ -7,6 +11,11 @@ pulls. Your data stays where you put it.
 
 > Think of it as **Obsidian + an optional "publish to cloud" button**, packaged
 > as a tiny daemon you can install with one command.
+
+> **Internal beta.** This repository is private and unsigned bundles are
+> distributed via GitHub Releases inside the Akaion organization. macOS will
+> warn on first launch — right-click the app and pick **Open** to bypass
+> Gatekeeper.
 
 ## Why
 
@@ -23,28 +32,48 @@ you decide which notes (if any) get pushed to a remote backend you trust.
 
 ## Install
 
-### macOS / Linux (one-liner)
+### Native app (`.dmg` / `.AppImage` / `.exe`) — recommended
+
+Download the latest release for your platform from
+[Akaion-repos/akaion-app-runner/releases](https://github.com/Akaion-repos/akaion-app-runner/releases).
+
+- **macOS Apple Silicon**: `Akaion Runner_<ver>_aarch64.dmg`
+- **macOS Intel**: `Akaion Runner_<ver>_x64.dmg`
+- **Windows**: `Akaion Runner_<ver>_x64-setup.exe` (or `.msi`)
+- **Linux**: `Akaion Runner_<ver>_amd64.AppImage` (or `.deb`)
+
+On macOS, drag to `/Applications`. Launch from Spotlight. The first launch
+needs a right-click → **Open** because the bundle is unsigned during beta.
+
+With `gh` CLI from the terminal:
 
 ```bash
-curl -fsSL https://install.akaion.com/runner.sh | bash
+# macOS arm64 (M-series)
+gh release download v0.1.0 -R Akaion-repos/akaion-app-runner --pattern "*aarch64.dmg"
+open "Akaion Runner_0.1.0_aarch64.dmg"
+
+# Linux
+gh release download v0.1.0 -R Akaion-repos/akaion-app-runner --pattern "*.AppImage"
+chmod +x Akaion\ Runner_*.AppImage && ./Akaion\ Runner_*.AppImage
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/akaion/akaion-runner.git
-cd akaion-runner
+git clone git@github.com:Akaion-repos/akaion-app-runner.git
+cd akaion-app-runner
 ./install.sh        # creates venv, installs deps, builds UI
 ./start.sh          # boots the daemon on :7070
 ```
 
 Open `http://127.0.0.1:7070` in your browser. That's it — you're in.
 
-### Native app (`.dmg` / `.AppImage` / `.exe`)
+### One-line install (planned)
 
-Download the latest release from
-[github.com/akaion/akaion-runner/releases](https://github.com/akaion/akaion-runner/releases).
-Drag to `/Applications`, launch. The daemon runs in the menubar.
+```bash
+# Not yet hosted — TODO once install.akaion.com is wired up.
+# curl -fsSL https://install.akaion.com/runner.sh | bash
+```
 
 ## Usage
 
@@ -202,18 +231,27 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the deeper dive.
 
 ## Contributing
 
-Issues and PRs welcome. The project is Apache 2.0 licensed — see
-[`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Internal beta — PRs are reviewed inside the Akaion org. The project is
+licensed under Apache 2.0 ([`LICENSE`](LICENSE), [`NOTICE`](NOTICE)).
 
 Before opening a PR:
 
-1. Run `pytest` (the runner-side suite, no cloud needed)
-2. If you touch the UI, run `cd ui && npm run build` to make sure it compiles
-3. Keep secrets out — there is no API key worth committing. The Firebase web
-   key in `auth.py` is the documented public default
+1. Run `pytest` (runner-side suite, no cloud needed)
+2. If you touch the UI: `cd ui && npm run build` must succeed
+3. Keep secrets out — there is no API key worth committing. The Firebase Web
+   API key in `auth.py` and `ui/src/lib/firebase.ts` is the project's documented
+   public default; Firebase Web SDK keys are designed to be client-visible
+
+## Releases
+
+Tagged releases (`v*`) automatically trigger
+[`.github/workflows/release.yml`](.github/workflows/release.yml), which runs a
+4-target matrix (macOS arm64, macOS x64, Linux x64, Windows x64) and publishes
+a draft GitHub Release with all bundles attached. Promote draft → published
+manually after smoke testing.
 
 ## License
 
-Apache 2.0. See [`LICENSE`](LICENSE).
+Apache 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
 Copyright 2026 Akaion.
