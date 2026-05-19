@@ -1,150 +1,219 @@
 # Akaion Runner
 
-Local agent runner che si interfaccia con il cloud Akaion per eseguire tasks, tools e skills in locale.
+Local-first second brain. A markdown vault, a SQLite index, a small FastAPI
+server, and a desktop UI you open in your browser at `http://127.0.0.1:7070`.
+Works offline. Optionally pushes notes to an Akaion-compatible cloud — never
+pulls. Your data stays where you put it.
 
-## 🚀 Caratteristiche
+> Think of it as **Obsidian + an optional "publish to cloud" button**, packaged
+> as a tiny daemon you can install with one command.
 
-- **CLI completa**: login, init, run, status
-- **Daemon persistente**: polling continuo dal cloud
-- **Tool execution locale**: esegui tasks sul tuo sistema
-- **Permissions**: controllo granulare su file, cartelle, operazioni
-- **AI flessibile**: usa backend AI Akaion o providers esterni (OpenAI, Anthropic, Google)
-- **Sincronizzazione**: offline-first con sync quando necessario
-- 🎨 **UI colorata** con banner ASCII
-- 🔍 **Detection automatica** OS e shell
-- 🛡️ **Error handling** robusto
-- 📦 **Cleanup automatico** su errore
+## Why
 
-## 📦 Installazione
+Most "second brain" tools force a choice: full cloud (your data is theirs) or
+fully local (you lose collaboration and search across devices). Akaion Runner
+inverts that: notes live on disk as plain markdown, the daemon serves a UI, and
+you decide which notes (if any) get pushed to a remote backend you trust.
 
-### Quick Install (Una Riga)
+- ✅ Plain `.md` files + SQLite index — your vault is greppable and Git-friendly
+- ✅ One-way sync: local → remote, on demand, per-note
+- ✅ Single binary distribution via Tauri (`.dmg`, `.AppImage`, `.exe`)
+- ✅ Apache 2.0 — fork it, self-host the cloud side, run your own backend
+- ❌ No telemetry, no analytics, no background uploads
+
+## Install
+
+### macOS / Linux (one-liner)
 
 ```bash
 curl -fsSL https://install.akaion.com/runner.sh | bash
 ```
 
-### Manuale
+### From source
 
 ```bash
 git clone https://github.com/akaion/akaion-runner.git
 cd akaion-runner
-./install.sh
+./install.sh        # creates venv, installs deps, builds UI
+./start.sh          # boots the daemon on :7070
 ```
 
-Vedi [INSTALL.md](INSTALL.md) per istruzioni dettagliate.
+Open `http://127.0.0.1:7070` in your browser. That's it — you're in.
 
-## 🔧 Setup
+### Native app (`.dmg` / `.AppImage` / `.exe`)
 
-### 1. Login
+Download the latest release from
+[github.com/akaion/akaion-runner/releases](https://github.com/akaion/akaion-runner/releases).
+Drag to `/Applications`, launch. The daemon runs in the menubar.
+
+## Usage
+
+### Local-only (no account needed)
+
 ```bash
-akaion login
-# Inserisci API key dal tuo account Akaion
+./start.sh
+# Open http://127.0.0.1:7070
+# Click "Apri il mio Brain" — no login required
 ```
 
-### 2. Inizializza
+Every note you write lives under `~/akaion-brain/` as a markdown file. The
+daemon indexes them in `~/akaion-brain/.akaion/index.db` (SQLite). Search is
+local and instant. Delete the vault directory and the runner is forgotten.
+
+### Optional: push to the cloud
+
+If you have an Akaion account (or a self-hosted Akaion-compatible backend),
+you can push selected notes to it:
+
+1. Sidebar → **Sincronizza con Akaion Cloud** → log in with Google.
+2. In the Brain view, mark a note as `pending` (tag with sync intent).
+3. Sidebar → **Sync** → **Push pending**. The note ships to the cloud as a
+   thought; the cloud assigns it to a semantic cluster and returns metadata.
+
+The runner **never pulls thoughts from the cloud back to your vault**. Cloud
+notes stay on the cloud; local notes stay on your Mac. This is by design.
+
+## CLI
+
 ```bash
-akaion init
-# Configura permissions, paths, AI provider
+akaion init                  # one-time setup (creates ~/.akaion/config.yaml)
+akaion run                   # start the daemon (long-lived UI server)
+akaion run --once --task ".."  # execute a single ad-hoc task
+akaion login                 # sign in to Akaion Cloud (optional)
+akaion logout                # forget cloud credentials
+akaion cloud enable          # turn on cloud push capability
+akaion cloud disable         # back to pure local mode
+akaion status                # show config, vault stats, cloud connection
+akaion note add "title"      # CLI shortcut to create a note
+akaion note list             # list notes from the terminal
+akaion sync push             # push every note marked pending
 ```
 
-### 3. Avvia il runner
-```bash
-akaion run
-# Avvia il daemon in background
+## Configuration
+
+Two layers: a YAML file under `~/.akaion/` and environment variables.
+
+### `~/.akaion/config.yaml`
+
+```yaml
+cloud:
+  enabled: false            # default: pure local. `akaion cloud enable` flips this.
+  api_url: https://api.akaion.com
+  polling_interval: 5
+  timeout: 30
+runner:
+  capture_to_brain: true    # save every executed task as a local note
+permissions:
+  filesystem:
+    allowed_paths: [~/Documents, ~/Downloads]
+    denied_paths:  [~/.ssh]
+  shell:
+    enabled: true
+    allowed_commands: [ls, cat, grep, find, git]
+logging:
+  level: INFO
+  file: logs/runner.log
 ```
 
-### 4. Controlla lo stato
-```bash
-akaion status
-```
+### Environment variables
 
-## 🏗️ Architettura
+See [`.env.example`](.env.example) for the full list. The runner reads them
+from `~/.akaion/.env` or any shell-exported variable. `start.sh` can also
+load `.env.prod` or `.env.dev` profiles when invoked with `RUNNER_ENV=prod|dev`.
+
+The variables that matter most:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `AKAION_API_BASE` | Cloud backend host | `https://api.akaion.com` |
+| `AKAION_HOME` | Config + auth + vault parent dir | `~/.akaion` |
+| `AKAION_BRAIN_DIR` | Vault directory | `~/akaion-brain` |
+| `AKAION_LOG_LEVEL` | Loguru log level | `INFO` |
+
+## Architecture
 
 ```
+~/akaion-brain/                          ← vault (markdown + SQLite)
+├── notes/
+│   ├── 2026-05-19-meeting.md
+│   └── …
+└── .akaion/
+    └── index.db                         ← SQLite index for search/sync state
+
+~/.akaion/                               ← runner config
+├── config.yaml                          ← YAML config (see above)
+├── auth.json                            ← encrypted Firebase ID token (if logged in)
+└── .key                                 ← Fernet key for auth.json
+
 akaion-runner/
-├── cli.py                 # Entry point CLI
-├── runner/
-│   ├── main.py           # Daemon loop principale
-│   ├── executor.py       # Esecuzione tasks
-│   ├── auth.py           # Autenticazione
-│   ├── config.py         # Gestione configurazione
-│   ├── cloud_client.py   # Client per backend cloud
-│   ├── ai_client.py      # Client AI (multi-provider)
-│   ├── tools/            # Tools locali
-│   │   ├── __init__.py
-│   │   ├── filesystem.py
-│   │   ├── shell.py
-│   │   ├── browser.py
-│   │   └── registry.py
-│   └── permissions/      # Sistema permessi
-│       ├── __init__.py
-│       ├── manager.py
-│       └── validator.py
-├── config.yaml           # Config template
-├── setup.py
-└── requirements.txt
+├── runner/                              ← Python daemon
+│   ├── main.py                          ← idle-loop daemon + FastAPI server
+│   ├── auth.py                          ← Firebase auth + token cache
+│   ├── brain/manager.py                 ← markdown vault + SQLite index
+│   ├── sync/engine.py                   ← one-way push to COT backend
+│   ├── local_api.py                     ← /api/* endpoints on :7070
+│   ├── service_urls.py                  ← env-driven backend URL resolver
+│   └── cloud_client.py                  ← HTTP clients (auth verify, AI calls)
+└── ui/                                  ← React + Tauri shell
+    ├── src/                             ← TypeScript UI
+    └── src-tauri/                       ← Rust shell for the native .dmg
 ```
 
-## 🔐 Permissions
+The runner has **zero background traffic** to the cloud. It will only contact
+a remote backend when:
 
-Il runner richiede esplicito permesso per:
-- Accedere a cartelle specifiche
-- Eseguire comandi shell
-- Modificare file
-- Accedere al network
-- Leggere variabili d'ambiente
+- you log in (auth flow);
+- you click "Push" in the Sync view;
+- you manually call `akaion sync push` from the CLI.
 
-## 🤖 AI Providers
+## Self-hosting the cloud side
 
-Supportati:
-- **Akaion AI** (backend proprietario)
-- **OpenAI** (GPT-4, GPT-3.5)
-- **Anthropic** (Claude)
-- **Google** (Gemini)
-- **Local** (Ollama, LM Studio)
+Akaion Runner talks to three HTTP endpoints. If you want to point it at your
+own backend instead of `api.akaion.com`, implement these three:
 
-## 📝 Esempi
+| Endpoint | Used for | Required |
+|---|---|---|
+| `GET /api/service1/api/v1/users/me` | Verify Firebase token | yes |
+| `POST /api/service3/api/v1/cloud/thoughts` | Receive pushed notes | yes |
+| `POST /api/service4/api/v1/runner/agent/turn` | Optional cloud LLM inference | no |
 
-### Task semplice
-```bash
-akaion run --once "Analizza i log in /var/logs"
-```
+Set `AKAION_API_BASE` to your host, log in with a Firebase project of your
+choice (`FIREBASE_API_KEY`), done.
 
-### Daemon mode
-```bash
-akaion run --daemon
-```
-
-### Debug
-```bash
-akaion status --verbose
-akaion logs --tail 100
-```
-
-## 🔄 Workflow
-
-1. Runner fa polling al cloud ogni X secondi
-2. Cloud invia task da eseguire
-3. Runner valida permissions
-4. Executor esegue il task usando tools
-5. Risultato viene inviato al cloud
-6. Loop continua
-
-## 🛠️ Development
+## Development
 
 ```bash
-# Setup dev environment
-python -m venv env
-source env/bin/activate
-pip install -e ".[dev]"
+# Backend (Python)
+./install.sh
+./start.sh --dev                    # verbose logging
 
-# Run tests
-pytest
+# UI hot-reload (Tauri + Vite)
+./start.sh --tauri-dev              # opens the desktop shell against the live UI
 
-# Run locally
-python cli.py run --dev
+# Tests
+pytest                              # unit + integration
+
+# Build native installers
+./scripts/build-sidecar.sh          # PyInstaller → ui/src-tauri/binaries/
+cd ui && npm run tauri build        # → .dmg / .AppImage / .exe
 ```
 
-## 📄 License
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the deeper dive.
 
-Proprietary - Akaion 2026
+## Contributing
+
+Issues and PRs welcome. The project is Apache 2.0 licensed — see
+[`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+
+Before opening a PR:
+
+1. Run `pytest` (the runner-side suite, no cloud needed)
+2. If you touch the UI, run `cd ui && npm run build` to make sure it compiles
+3. Keep secrets out — there is no API key worth committing. The Firebase web
+   key in `auth.py` is the documented public default
+
+## License
+
+Apache 2.0. See [`LICENSE`](LICENSE).
+
+Copyright 2026 Akaion.

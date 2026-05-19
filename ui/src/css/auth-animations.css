@@ -1,0 +1,283 @@
+/* ─────────────────────────────────────────────
+   Akaion Runner — Auth animations & tokens
+   Ported from akaion-pwa-frontend.
+   Self-contained: only depends on CSS vars defined here.
+   ───────────────────────────────────────────── */
+
+:root {
+  --akaion-primary-blue: 220 100% 60%;
+  --akaion-electric-violet: 270 100% 70%;
+  --akaion-accent-red: 0 90% 65%;
+  --auth-text: 0 0% 97%;
+  --auth-text-subtle: 0 0% 55%;
+  --shadow-violet:
+    0 0 40px hsl(var(--akaion-electric-violet) / 0.32),
+    0 0 80px hsl(var(--akaion-electric-violet) / 0.12);
+  --shadow-blue:
+    0 0 40px hsl(var(--akaion-primary-blue) / 0.28),
+    0 0 80px hsl(var(--akaion-primary-blue) / 0.12);
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+
+@keyframes fade-in-up {
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0px)   scale(1);    }
+  50%      { transform: translateY(-22px) scale(1.06); }
+}
+
+@keyframes ak-spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in-up { animation: fade-in-up 0.6s ease-out; }
+.animate-fade-in    { animation: fade-in    0.8s ease-out; }
+
+/* ── Welcome / login layout ──────────────────────────────────────────────── */
+
+.ak-welcome-shell {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a14;
+  color: hsl(var(--auth-text));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "SF Pro Text", "Helvetica Neue", sans-serif;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.ak-welcome-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  animation: orb-float 8s ease-in-out infinite;
+}
+
+.ak-welcome-orb--violet {
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 520px;
+  height: 520px;
+  background: hsl(var(--akaion-electric-violet) / 0.32);
+  opacity: 0.5;
+}
+
+.ak-welcome-orb--blue {
+  bottom: -160px;
+  right: -80px;
+  width: 420px;
+  height: 420px;
+  background: hsl(var(--akaion-primary-blue) / 0.28);
+  opacity: 0.4;
+  animation-delay: 2s;
+}
+
+.ak-welcome-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: center;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+/* Primary CTA: pill, violet+blue gradient, glow. */
+.ak-btn-primary {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--akaion-electric-violet) / 0.45);
+  background: linear-gradient(
+    100deg,
+    hsl(var(--akaion-electric-violet)) 0%,
+    hsl(var(--akaion-primary-blue)) 100%
+  );
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  box-shadow: var(--shadow-violet);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ak-btn-primary:hover {
+  filter: brightness(1.06);
+  box-shadow: var(--shadow-violet), var(--shadow-blue);
+}
+
+.ak-btn-primary:active   { transform: scale(0.97); }
+.ak-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Social button (secondary CTA) */
+.ak-social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 52px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  gap: 12px;
+  padding: 0 20px;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+}
+
+.ak-social-btn:hover    { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.15); }
+.ak-social-btn:active   { transform: scale(0.97); }
+.ak-social-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ak-social-icon  { display: inline-flex; align-items: center; justify-content: center; }
+.ak-social-label { color: inherit; }
+
+.ak-social-btn--icon { height: 52px; padding: 0; gap: 8px; border-radius: 16px; }
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+
+.ak-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: hsl(var(--auth-text-subtle));
+  font-size: 12px;
+  margin: 4px 0;
+  letter-spacing: 0.4px;
+  text-transform: lowercase;
+}
+
+.ak-or-divider::before,
+.ak-or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Footer info (vault path) ────────────────────────────────────────────── */
+
+.ak-welcome-footer {
+  font-size: 12px;
+  color: hsl(var(--auth-text-subtle));
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.ak-welcome-footer code {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: hsl(var(--auth-text));
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+
+.ak-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  animation: ak-spin 0.8s linear infinite;
+}
+
+/* ── Sidebar cloud-status badge ──────────────────────────────────────────── */
+
+.ak-cloud-badge {
+  margin: 10px 8px 4px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11.5px;
+  color: hsl(var(--auth-text-subtle));
+  line-height: 1.4;
+}
+
+.ak-cloud-badge__row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: hsl(var(--auth-text));
+}
+
+.ak-cloud-badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #6e7681;
+}
+
+.ak-cloud-badge__dot--online {
+  background: #3fb950;
+  box-shadow: 0 0 6px #3fb950;
+}
+
+.ak-cloud-badge__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--akaion-electric-violet) / 0.35);
+  background: hsl(var(--akaion-electric-violet) / 0.10);
+  color: hsl(var(--auth-text));
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+
+.ak-cloud-badge__cta:hover {
+  background: hsl(var(--akaion-electric-violet) / 0.20);
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────── */
+
+.ak-auth-error {
+  font-size: 12px;
+  color: hsl(var(--akaion-accent-red));
+  background: hsl(var(--akaion-accent-red) / 0.08);
+  border: 1px solid hsl(var(--akaion-accent-red) / 0.20);
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-align: center;
+}

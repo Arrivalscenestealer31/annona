@@ -3,9 +3,13 @@ from setuptools import setup, find_packages
 setup(
     name="akaion-runner",
     version="0.1.0",
-    description="Local agent runner for Akaion cloud platform",
-    author="Akaion Team",
+    description="Local-first second brain — markdown vault, SQLite index, optional one-way push to an Akaion-compatible backend.",
+    long_description=(open("README.md").read() if __import__("os").path.exists("README.md") else ""),
+    long_description_content_type="text/markdown",
+    author="Akaion",
     author_email="dev@akaion.com",
+    url="https://github.com/akaion/akaion-runner",
+    license="Apache-2.0",
     packages=find_packages(),
     install_requires=[
         "typer[all]>=0.12.3",
@@ -44,8 +48,12 @@ setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: Microsoft :: Windows",
     ],
 )

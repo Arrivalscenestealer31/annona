@@ -1,0 +1,33 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for Akaion Runner: spawn Python sidecar + control main window.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:default",
+    "updater:default",
+    "process:default",
+    "process:allow-restart",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/akaion-runner",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-kill",
+      "allow": [
+        {
+          "name": "binaries/akaion-runner",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
+  ]
+}

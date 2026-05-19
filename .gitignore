@@ -29,6 +29,9 @@ logs/
 *.log
 config.yaml
 .env
+.env.prod
+.env.dev
+.env.local
 
 # IDE
 .vscode/
@@ -45,3 +48,20 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Web UI build artifacts
+ui/node_modules/
+ui/dist/
+ui/.vite/
+
+# Tauri shell build artifacts
+ui/src-tauri/target/
+ui/src-tauri/binaries/
+ui/src-tauri/gen/
+build/work/
+*.spec.bak
+
+# Tauri updater signing keys — NEVER commit
+*.key
+*.key.pub
+SIGNING.md

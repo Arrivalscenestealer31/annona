@@ -1,32 +1,35 @@
 """
 Runner Daemon
 
-Main daemon che fa polling dal cloud ed esegue i task.
-Avvia anche un server FastAPI locale su :port per la UI Tauri.
+Akaion Runner — local-first second brain with optional one-way push to a
+remote backend. The daemon serves a FastAPI UI on 127.0.0.1:<port> and runs
+no background polling: it never receives tasks from the cloud, it only
+pushes notes the user explicitly creates locally.
 """
-import asyncio
 import os
-import time
 import signal
-from typing import Dict, Any, Optional
-from loguru import logger
+import time
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+from loguru import logger
 
 from .auth import AuthManager
-from .config import ConfigManager
-from .cloud_client import CloudClient
-from .executor import TaskExecutor
-from .banner import print_runner_banner, print_startup_info
+from .brain.capture import capture_task_as_note
 from .brain.manager import BrainManager
-from .sync.engine import SyncEngine
+from .config import ConfigManager
+from .executor import TaskExecutor
+from .banner import print_runner_banner
 from .local_api import LocalAPIServer
+from .service_urls import resolve_service_url
+from .sync.engine import SyncEngine
 
 DEFAULT_BRAIN_DIR = Path.home() / "akaion-brain"
 DEFAULT_LOCAL_PORT = 7070
 
 
 class RunnerDaemon:
-    """Daemon principale del runner"""
+    """Local daemon — Brain UI + on-demand push to remote COT."""
 
     def __init__(
         self,
@@ -41,246 +44,144 @@ class RunnerDaemon:
         self.tasks_executed = 0
         self.local_port = local_port
 
-        # Setup logging
         self._setup_logging()
-        
-        # Managers
+
         self.auth_manager = AuthManager()
         self.config_manager = ConfigManager()
-        
-        # Cloud client
-        self.cloud_client = CloudClient(
-            api_key=self.auth_manager.get_api_key(),
-            base_url=os.getenv("AKAION_MAIN_URL"),
-            runner_id=self.auth_manager.get_runner_id(),
-            timeout=config.get("cloud", {}).get("timeout", 30)
-        )
-        
-        # Executor
+
+        cloud_enabled = bool(config.get("cloud", {}).get("enabled", False))
+        is_authed = self.auth_manager.is_authenticated()
+        self._cloud_enabled = cloud_enabled
+        self._cloud_authed = is_authed
+
         self.executor = TaskExecutor(config)
 
-        # Polling config
-        self.polling_interval = config.get("cloud", {}).get("polling_interval", 5)
         self.max_concurrent = config.get("runner", {}).get("max_concurrent_tasks", 3)
 
-        # Brain + Sync
+        cfg_capture = bool(config.get("runner", {}).get("capture_to_brain", True))
+        env_capture = os.environ.get("AKAION_CAPTURE_TO_BRAIN")
+        if env_capture is not None:
+            self.capture_to_brain = env_capture.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            self.capture_to_brain = cfg_capture
+
         _brain_dir = brain_dir or Path(
             config.get("brain", {}).get("dir", str(DEFAULT_BRAIN_DIR))
         )
         self.brain = BrainManager(_brain_dir)
         self.sync = SyncEngine(
             brain=self.brain,
-            cot_url=os.getenv("AKAION_COT_URL", "https://cot.akaion.com"),
+            cot_url=resolve_service_url("cot"),
             auth=self.auth_manager,
         )
 
-        # Local API server (Tauri UI)
-        self.local_api = LocalAPIServer(self.brain, self.sync, auth=self.auth_manager, port=local_port)
+        self.local_api = LocalAPIServer(
+            self.brain,
+            self.sync,
+            auth=self.auth_manager,
+            port=local_port,
+            cloud_enabled=cloud_enabled,
+        )
 
-        # Setup signal handlers
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
-    
+
     def _setup_logging(self):
-        """Setup del logging system"""
         log_config = self.config.get("logging", {})
         log_level = log_config.get("level", "INFO")
         log_file = log_config.get("file", "logs/runner.log")
-        
-        # Crea directory logs
+
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
-        
-        # Configure loguru
-        logger.remove()  # Rimuovi handler default
-        
-        # Console handler
+
+        logger.remove()
         logger.add(
             lambda msg: print(msg, end=""),
             format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-            level=log_level
+            level=log_level,
         )
-        
-        # File handler
         logger.add(
             log_file,
             rotation="1 day",
             retention="7 days",
             level=log_level,
-            format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function} - {message}"
+            format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function} - {message}",
         )
-        
+
         if self.dev_mode:
             logger.info("🔧 Development mode enabled")
-    
+
     def _signal_handler(self, signum, frame):
-        """Handler per SIGINT e SIGTERM"""
         logger.info(f"Received signal {signum}, shutting down...")
         self.stop()
-    
-    def start_daemon(self):
-        """Avvia il daemon in modalità persistente"""
-        self.running = True
 
-        # Avvia local API server in background thread
+    def start_daemon(self):
+        self.running = True
         self.local_api.start()
 
-        # Print beautiful banner
         print_runner_banner()
-        
         logger.info("🚀 Akaion Runner started")
-        
-        # Print startup info
-        print_startup_info(
-            runner_id=self.auth_manager.get_runner_id(),
-            cloud_url=self.cloud_client.base_url,
-            polling_interval=self.polling_interval
-        )
-        
-        logger.info("👂 Listening for tasks...")
+
+        if self._cloud_enabled and self._cloud_authed:
+            logger.info("Cloud push enabled — notes can be pushed to remote on demand")
+        elif not self._cloud_enabled:
+            logger.info("Running in local-only mode (cloud.enabled=false — no remote push)")
+        else:
+            logger.info("Running in local-only mode (not authenticated — login via UI or `akaion login`)")
+
         logger.info("Press Ctrl+C to stop")
-        
-        # Verifica connessione
-        if not self.cloud_client.health_check():
-            logger.warning("⚠️  Cloud health check failed, but continuing...")
-        
-        last_heartbeat = 0
-        heartbeat_interval = 30  # Heartbeat ogni 30s
-        
+
         try:
             while self.running:
-                # Heartbeat
-                current_time = time.time()
-                if current_time - last_heartbeat > heartbeat_interval:
-                    self._send_heartbeat()
-                    last_heartbeat = current_time
-                
-                # Poll per task
-                self._poll_and_execute()
-                
-                # Sleep
-                time.sleep(self.polling_interval)
-        
+                # Idle loop — keep the process alive so the FastAPI server in
+                # the background thread stays up. No cloud polling.
+                time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Interrupted by user")
         except Exception as e:
             logger.error(f"Daemon error: {e}", exc_info=True)
         finally:
             self.stop()
-    
-    def poll_once(self):
-        """Esegue un singolo polling cycle"""
-        logger.info("🔄 Polling for tasks...")
-        self._poll_and_execute()
-    
+
     def execute_once(self, task_description: str) -> Any:
-        """
-        Esegue un task specifico una volta
-        
-        Args:
-            task_description: Descrizione del task da eseguire
-        """
+        """Run a single ad-hoc task (CLI entry point)."""
         logger.info(f"🎯 Executing task: {task_description}")
-        
-        # Crea un task object
+
         task = {
             "id": "local-" + str(int(time.time())),
             "type": "command",
             "description": task_description,
-            "payload": {
-                "command": task_description
-            }
+            "payload": {"command": task_description},
         }
-        
         return self._execute_task(task)
-    
-    def _poll_and_execute(self):
-        """Poll dal cloud ed esegui i task"""
-        try:
-            tasks = self.cloud_client.poll_tasks()
-            
-            if not tasks:
-                logger.debug("No tasks available")
-                return
-            
-            logger.info(f"📥 Received {len(tasks)} task(s)")
-            
-            for task in tasks[:self.max_concurrent]:
-                self._execute_task(task)
-        
-        except Exception as e:
-            logger.error(f"Error during polling: {e}", exc_info=True)
-    
+
     def _execute_task(self, task: Dict[str, Any]) -> Any:
-        """
-        Esegue un task
-        
-        Args:
-            task: Task object dal cloud
-        """
         task_id = task.get("id")
         logger.info(f"⚙️  Executing task {task_id}")
-        
+
         try:
-            # Update status: running
-            if "id" in task and task["id"].startswith("task-"):
-                self.cloud_client.update_task_status(task_id, "running")
-            
-            # Esegui il task
             result = self.executor.execute(task)
-            
             logger.info(f"✅ Task {task_id} completed successfully")
-            
-            # Update status: completed
-            if "id" in task and task["id"].startswith("task-"):
-                self.cloud_client.submit_task_result(
-                    task_id,
-                    result=result,
-                    success=True
-                )
-            
+            self._capture_task_to_brain(task, result)
             self.tasks_executed += 1
             return result
-        
         except Exception as e:
             logger.error(f"❌ Task {task_id} failed: {e}", exc_info=True)
-            
-            # Update status: failed
-            if "id" in task and task["id"].startswith("task-"):
-                self.cloud_client.submit_task_result(
-                    task_id,
-                    result=None,
-                    success=False,
-                    error=str(e)
-                )
-            
+            self._capture_task_to_brain(task, {"success": False, "error": str(e)})
             raise
-    
-    def _send_heartbeat(self):
-        """Invia heartbeat al cloud"""
+
+    def _capture_task_to_brain(self, task: Dict[str, Any], result: Any) -> None:
+        if not self.capture_to_brain:
+            return
         try:
-            status = {
-                "running": self.running,
-                "tasks_executed": self.tasks_executed,
-                "uptime": int(time.time()),  # Simplified
-            }
-            
-            self.cloud_client.send_heartbeat(status)
-            logger.debug("💓 Heartbeat sent")
-        
-        except Exception as e:
-            logger.debug(f"Heartbeat error: {e}")
-    
+            capture_task_as_note(self.brain, task, result)
+        except Exception as e:  # noqa: BLE001 — safety net
+            logger.warning(f"Failed to capture task to brain: {e}")
+
     def stop(self):
-        """Ferma il daemon"""
         if not self.running:
             return
-        
         self.running = False
         logger.info("🛑 Runner stopped")
-
-        # Cleanup
         self.local_api.stop()
         self.brain.close()
-        self.cloud_client.close()
-        
         logger.info(f"📊 Total tasks executed: {self.tasks_executed}")

@@ -206,13 +206,12 @@ def run(
             console.print("\nPress Ctrl+C to stop\n")
             runner.start_daemon()
         else:
-            if task:
-                console.print(f"🎯 [green]Executing task:[/green] {task}")
-                result = runner.execute_once(task)
-                console.print(f"\n✅ Result: {result}")
-            else:
-                console.print("🔄 [green]Polling for one task...[/green]")
-                runner.poll_once()
+            if not task:
+                console.print("❌ [red]--once requires --task <description>[/red]")
+                raise typer.Exit(2)
+            console.print(f"🎯 [green]Executing task:[/green] {task}")
+            result = runner.execute_once(task)
+            console.print(f"\n✅ Result: {result}")
         
     except KeyboardInterrupt:
         console.print("\n👋 [yellow]Runner stopped by user[/yellow]")

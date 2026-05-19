@@ -36,12 +36,13 @@ CREATE TABLE IF NOT EXISTS notes (
     sync_error       TEXT
 );
 
+-- Nota: tabella FTS5 NON contentless: con `content=''` SQLite restituisce
+-- NULL per le colonne (incluso `id UNINDEXED`), rendendo impossibili sia
+-- JOIN su notes.id sia DELETE by id. Manteniamo il contenuto in-fts.
 CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
     id UNINDEXED,
     title,
-    content,
-    content='',
-    contentless_delete=1
+    content
 );
 """
 
@@ -165,6 +166,19 @@ class BrainManager:
 
         rows = self._conn.execute(query, params).fetchall()
         return [self._row_to_note(r) for r in rows]
+
+    def find_note_by_tag(self, tag: str) -> Optional[Note]:
+        """
+        Trova la PRIMA nota che contiene il tag esatto.
+
+        Usata per check di idempotency (es. evitare di creare 2 note per lo
+        stesso task_id). Il match è esatto sul valore JSON in tags column.
+        """
+        row = self._conn.execute(
+            "SELECT * FROM notes WHERE tags LIKE ? ORDER BY created_at ASC LIMIT 1",
+            (f'%"{tag}"%',),
+        ).fetchone()
+        return self._row_to_note(row) if row else None
 
     def search(self, query: str, limit: int = 20) -> List[Note]:
         rows = self._conn.execute(

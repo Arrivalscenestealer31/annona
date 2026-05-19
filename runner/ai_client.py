@@ -49,14 +49,18 @@ class AIClient:
             raise ValueError(f"Unknown AI provider: {self.provider}")
     
     def _init_akaion(self):
-        """Inizializza Akaion AI"""
+        """Inizializza Akaion AI. Local-first: senza credenziali resta inattivo
+        (client=None) ma la classe è costruibile — il check duro avviene solo
+        quando si tenta una completion."""
         from .auth import AuthManager
         auth = AuthManager()
-        
+
         api_key = auth.get_api_key()
         if not api_key:
-            raise ValueError("Akaion API key not available")
-        
+            logger.info("Akaion AI client disabled — no API key (local-only mode)")
+            self.client = None
+            return
+
         self.client = AIBackendClient(
             api_key=api_key,
             runner_id=auth.get_runner_id()

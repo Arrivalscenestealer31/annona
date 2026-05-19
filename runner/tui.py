@@ -26,6 +26,8 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.reactive import reactive
 from textual.widgets import Footer, Header, Label, RichLog, Static, Button
 
+from .service_urls import resolve_service_url
+
 load_dotenv()
 
 
@@ -204,11 +206,12 @@ class InfoCard(Static):
 class BackendsCard(Static):
     """Card con stato dei 4 backend."""
 
+    # Mappa logica → (label, service-key per resolve_service_url)
     BACKENDS: dict[str, tuple[str, str]] = {
-        "main":     ("Main",     "AKAION_MAIN_URL"),
-        "ai":       ("AI",       "AKAION_AI_URL"),
-        "calendar": ("Calendar", "AKAION_CALENDAR_URL"),
-        "cot":      ("CoT",      "AKAION_COT_URL"),
+        "main":     ("Main",     "main"),
+        "ai":       ("AI",       "ai"),
+        "calendar": ("Calendar", "calendar"),
+        "cot":      ("CoT",      "cot"),
     }
 
     def compose(self) -> ComposeResult:
@@ -309,8 +312,11 @@ class AkaionDashboard(App):
         log: RichLog = self.query_one(RichLog)
         headers = {"Authorization": f"Bearer {self._token}"} if self._token else {}
 
-        for key, (name, env_var) in BackendsCard.BACKENDS.items():
-            url = os.getenv(env_var, "")
+        for key, (name, service_key) in BackendsCard.BACKENDS.items():
+            try:
+                url = resolve_service_url(service_key)
+            except Exception:
+                url = ""
             ts = datetime.now().strftime("%H:%M:%S")
             if not url:
                 self.call_from_thread(bc.set_status, key, None)

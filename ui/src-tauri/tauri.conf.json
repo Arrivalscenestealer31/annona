@@ -1,0 +1,71 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Akaion Runner",
+  "version": "0.1.0",
+  "identifier": "com.akaion.runner",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Akaion Runner",
+        "label": "main",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "appimage", "deb", "msi", "nsis"],
+    "category": "Productivity",
+    "copyright": "© 2026 Akaion",
+    "shortDescription": "Akaion Runner - Local agent daemon",
+    "longDescription": "Akaion Runner is the local agent daemon of the Akaion platform. Runs your Brain locally and (optionally) syncs to the Akaion cloud.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/akaion-runner"],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "exceptionDomain": "127.0.0.1"
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/Akaion-repos/akaion-app-runner/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "PLACEHOLDER_PUBLIC_KEY_GENERATED_BY_TAURI_SIGNER"
+    }
+  }
+}

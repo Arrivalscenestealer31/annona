@@ -3,17 +3,30 @@ Configuration Manager
 
 Gestisce la configurazione del runner.
 """
+import os
 import yaml
 from pathlib import Path
 from typing import Optional, Dict, Any
 import shutil
 
+from .service_urls import resolve_service_url
+
+
+def _default_home() -> Path:
+    # AKAION_HOME lets the .dmg/.AppImage install live in its own
+    # config dir (e.g. ~/.akaion-prod) without clobbering the source
+    # checkout's ~/.akaion.
+    override = os.getenv("AKAION_HOME")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".akaion"
+
 
 class ConfigManager:
     """Gestisce la configurazione del runner"""
-    
+
     def __init__(self, config_dir: Optional[Path] = None):
-        self.config_dir = config_dir or Path.home() / ".akaion"
+        self.config_dir = config_dir or _default_home()
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
         self.config_path = self.config_dir / "config.yaml"
@@ -109,7 +122,12 @@ class ConfigManager:
         """Configurazione minimale di fallback"""
         return {
             "cloud": {
-                "api_url": "https://api.akaion.com",
+                # Local-first default: cloud sync is opt-in. The runner works
+                # fully offline (Brain, notes, search) without ever touching
+                # the network. Flip to True (or run `akaion cloud enable`) to
+                # enable polling, heartbeat and sync.
+                "enabled": False,
+                "api_url": resolve_service_url("main"),
                 "polling_interval": 5,
                 "timeout": 30
             },
@@ -142,6 +160,10 @@ class ConfigManager:
             "runner": {
                 "mode": "daemon",
                 "max_concurrent_tasks": 3,
-                "retry_attempts": 3
+                "retry_attempts": 3,
+                # Se True, ogni esecuzione di task viene salvata anche come
+                # Note locale (sync_status=local_only) nel Brain. Override
+                # via env var AKAION_CAPTURE_TO_BRAIN=0/1.
+                "capture_to_brain": True
             }
         }

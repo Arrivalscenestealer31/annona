@@ -1,0 +1,33 @@
+[package]
+name = "akaion-runner-shell"
+version = "0.1.0"
+description = "Akaion Runner desktop shell (Tauri 2)"
+authors = ["Akaion"]
+edition = "2021"
+rust-version = "1.77"
+
+[[bin]]
+name = "akaion-runner-app"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+env_logger = "0.11"
+tokio = { version = "1", features = ["time", "sync", "rt-multi-thread", "macros"] }
+# Cross-platform Ctrl+C / SIGINT / SIGTERM handler — used to make sure we kill
+# the Python sidecar before the Tauri shell exits, even when the host sends
+# a termination signal (e.g. `kill -TERM <pid>` or a Dock "Quit").
+ctrlc = { version = "3", features = ["termination"] }
+
+[features]
+# This feature is used for production builds where `devUrl` is not needed.
+custom-protocol = ["tauri/custom-protocol"]

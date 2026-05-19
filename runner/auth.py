@@ -24,7 +24,13 @@ import os
 import httpx
 
 
-# Firebase project: akaion-app-213b6
+# Firebase Web SDK API key for the default Akaion project (akaion-app-213b6).
+# This is NOT a secret — Firebase Web API keys are designed to be exposed
+# client-side. They identify the Firebase project so the SDK can route the
+# request; actual user-level auth happens via OAuth/ID token flows.
+# See: https://firebase.google.com/docs/projects/api-keys
+# Override only if you want to point the runner at a different Firebase
+# project (e.g. self-hosted Akaion deployment).
 FIREBASE_API_KEY = os.getenv("FIREBASE_API_KEY", "AIzaSyA5RDLqm4zCJnpmYz_Ms15wgXLDEmaTiy0")
 FIREBASE_SIGN_IN_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
 FIREBASE_REFRESH_URL = "https://securetoken.googleapis.com/v1/token"
@@ -190,7 +196,10 @@ class AuthManager:
     """Gestisce l'autenticazione Firebase del runner."""
 
     def __init__(self, config_dir: Optional[Path] = None):
-        self.config_dir = config_dir or Path.home() / ".akaion"
+        if config_dir is None:
+            override = os.getenv("AKAION_HOME")
+            config_dir = Path(override).expanduser() if override else Path.home() / ".akaion"
+        self.config_dir = config_dir
         self.config_dir.mkdir(parents=True, exist_ok=True)
         self.auth_file = self.config_dir / "auth.json"
         self.key_file = self.config_dir / ".key"

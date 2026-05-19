@@ -8,6 +8,9 @@ Design:
 - PULL: GET /api/v1/cloud/messages + /clusters → aggiorna cluster_info locale
 - Non tutto deve essere sincronizzato: local_only rimane locale finché
   l'utente non chiama mark_pending() o push esplicito.
+
+Local-first: ogni metodo verifica auth PRIMA di costruire un client httpx.
+Senza credenziali la sync è un no-op silenzioso (niente Bearer None requests).
 """
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -28,6 +31,10 @@ _NETWORK_ERRORS = (
 )
 
 
+class SyncError(Exception):
+    """Errore lato sync (auth mancante, payload invalido, ecc.)."""
+
+
 class SyncEngine:
     """Gestisce sync bidirezionale con COT cloud."""
 
@@ -44,7 +51,10 @@ class SyncEngine:
         self.timeout = timeout
 
     def _client(self) -> httpx.Client:
+        """Costruisce un httpx.Client autenticato. Solleva SyncError se manca il token."""
         token = self.auth.get_firebase_token()
+        if not token:
+            raise SyncError("not_authenticated")
         return httpx.Client(
             base_url=self.cot_url,
             headers={
@@ -59,7 +69,7 @@ class SyncEngine:
     def push_pending(self) -> Dict[str, int]:
         """
         Invia al COT tutte le note con sync_status=pending_sync.
-        Restituisce {"synced": N, "errors": M}.
+        Restituisce {"synced": N, "errors": M, "error"?: "not_authenticated"}.
         """
         pending = self.brain.list(sync_status=SYNC_PENDING)
         if not pending:
@@ -69,13 +79,17 @@ class SyncEngine:
         logger.info(f"Sync push: {len(pending)} note da inviare")
         synced = errors = 0
 
-        with self._client() as client:
-            for note in pending:
-                result = self._push_note(client, note)
-                if result:
-                    synced += 1
-                else:
-                    errors += 1
+        try:
+            with self._client() as client:
+                for note in pending:
+                    result = self._push_note(client, note)
+                    if result:
+                        synced += 1
+                    else:
+                        errors += 1
+        except SyncError as e:
+            logger.warning(f"Sync push skipped: {e}")
+            return {"synced": 0, "errors": 0, "error": str(e)}
 
         logger.info(f"Sync push completata: {synced} ok, {errors} errori")
         return {"synced": synced, "errors": errors}
@@ -85,8 +99,12 @@ class SyncEngine:
         note = self.brain.get(note_id)
         if not note:
             return False
-        with self._client() as client:
-            return self._push_note(client, note)
+        try:
+            with self._client() as client:
+                return self._push_note(client, note)
+        except SyncError as e:
+            logger.warning(f"Sync push skipped [{note_id}]: {e}")
+            return False
 
     def _push_note(self, client: httpx.Client, note: Note) -> bool:
         try:
@@ -94,7 +112,7 @@ class SyncEngine:
                 "content": f"# {note.title}\n\n{note.content}",
                 "metadata": {
                     "title": note.title,
-                    "source": "local_brain",
+                    "source": "local_runner",
                     "local_id": note.id,
                     "tags": note.tags,
                 },
@@ -135,57 +153,3 @@ class SyncEngine:
             logger.error(f"Note sync error [{note.id}]: {e}")
             return False
 
-    # ── Pull ──────────────────────────────────────────────────────────────────
-
-    def pull_clusters(self) -> Dict[str, int]:
-        """
-        Recupera i cluster dal COT e aggiorna le note locali già sincronizzate
-        con le info del cluster assegnato (cluster_id, cluster_name).
-        Non crea nuove note locali — il pull aggiorna solo i metadati.
-        Restituisce {"updated": N, "clusters": M}.
-        """
-        try:
-            with self._client() as client:
-                resp = client.get("/api/v1/cloud/clusters")
-
-            if resp.status_code != 200:
-                logger.warning(f"Pull clusters failed: HTTP {resp.status_code}")
-                return {"updated": 0, "clusters": 0}
-
-            clusters = resp.json() if isinstance(resp.json(), list) else resp.json().get("clusters", [])
-            updated = 0
-
-            for cluster in clusters:
-                cid   = str(cluster.get("id", ""))
-                cname = cluster.get("cluster_name", "")
-                # Aggiorna le note locali che appartengono a questo cluster
-                count = self._update_notes_cluster(cid, cname)
-                updated += count
-
-            logger.info(f"Pull clusters: {len(clusters)} cluster, {updated} note aggiornate")
-            return {"updated": updated, "clusters": len(clusters)}
-
-        except _NETWORK_ERRORS as e:
-            logger.warning(f"Pull clusters offline: {type(e).__name__} — rete non disponibile")
-            return {"updated": 0, "clusters": 0}
-        except Exception as e:
-            logger.error(f"Pull clusters error: {e}")
-            return {"updated": 0, "clusters": 0}
-
-    def _update_notes_cluster(self, cot_cluster_id: str, cot_cluster_name: str) -> int:
-        """Aggiorna cluster_name su tutte le note locali che puntano a questo cluster."""
-        conn = self.brain._conn
-        cur  = conn.execute(
-            "UPDATE notes SET cot_cluster_id = ?, cot_cluster_name = ? WHERE cot_cluster_id = ?",
-            (cot_cluster_id, cot_cluster_name, cot_cluster_id),
-        )
-        conn.commit()
-        return cur.rowcount
-
-    # ── Full sync ─────────────────────────────────────────────────────────────
-
-    def full_sync(self) -> Dict[str, Any]:
-        """Push pending → pull clusters."""
-        push_result = self.push_pending()
-        pull_result = self.pull_clusters()
-        return {**push_result, **pull_result}

@@ -1,7 +1,7 @@
 """
 Local API Server
 
-FastAPI su localhost:7070 — consumato da Tauri/React UI.
+FastAPI su 127.0.0.1:7070 — espone API + serve la web UI buildata da `ui/dist`.
 Gira in un thread separato accanto al daemon di polling.
 
 Endpoints:
@@ -18,8 +18,8 @@ Endpoints:
   GET  /api/brain/search?q=...
   GET  /api/sync/status
   POST /api/sync/push
-  POST /api/sync/pull
-  POST /api/sync/full
+  POST /api/sync/push/{id}
+  GET  /            → ui/dist/index.html (se la UI è stata buildata)
 """
 import threading
 from typing import List, Optional, Any, Dict
@@ -29,12 +29,18 @@ from datetime import datetime
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from loguru import logger
 from pydantic import BaseModel
 
 from .brain.manager import BrainManager
 from .auth import AuthManager
 from .brain.models import Note, SyncStats
 from .sync.engine import SyncEngine
+
+
+# UI dist path: <runner-root>/ui/dist
+_UI_DIST = Path(__file__).resolve().parent.parent / "ui" / "dist"
 
 
 # ── Pydantic I/O models ───────────────────────────────────────────────────────
@@ -73,17 +79,28 @@ class SyncStatusOut(BaseModel):
     local_only: int
     errors: int
     last_push: Optional[datetime]
-    last_pull: Optional[datetime]
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
 
-def create_app(brain: BrainManager, sync: SyncEngine, auth: Optional[AuthManager] = None) -> FastAPI:
+def create_app(
+    brain: BrainManager,
+    sync: SyncEngine,
+    auth: Optional[AuthManager] = None,
+    cloud_enabled: bool = False,
+) -> FastAPI:
     app = FastAPI(title="Akaion Local API", version="0.1.0")
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:1420", "tauri://localhost", "http://localhost:5173"],
+        # Same-origin (7070) needs no CORS. 5173 is the Vite dev server.
+        # Tauri origins removed in Step 5 (desktop shell dropped).
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:7070",
+            "http://127.0.0.1:7070",
+        ],
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -100,12 +117,29 @@ def create_app(brain: BrainManager, sync: SyncEngine, auth: Optional[AuthManager
 
     @app.get("/api/auth/status")
     def auth_status():
-        """Controlla se il runner è autenticato."""
+        """Controlla se il runner è autenticato. Sempre 200 — mai bloccante."""
         authenticated = _auth.is_authenticated()
         return {
             "authenticated": authenticated,
             "email": _auth.get_email() if authenticated else None,
             "runner_id": _auth.get_runner_id() if authenticated else None,
+            "mode": "cloud" if authenticated else "local",
+        }
+
+    # ── Runner mode ───────────────────────────────────────────────────────────
+
+    @app.get("/api/runner/mode")
+    def runner_mode():
+        """
+        Modalità attuale del runner (la UI la usa per decidere cosa mostrare
+        in sidebar: badge "Locale" vs "Sincronizzato").
+        """
+        authenticated = _auth.is_authenticated()
+        return {
+            "mode": "cloud" if (cloud_enabled and authenticated) else "local",
+            "cloud_enabled": cloud_enabled,
+            "authenticated": authenticated,
+            "vault_path": str(brain.brain_dir) if hasattr(brain, "brain_dir") else "~/akaion-brain",
         }
 
     class AuthSaveRequest(BaseModel):
@@ -206,7 +240,6 @@ def create_app(brain: BrainManager, sync: SyncEngine, auth: Optional[AuthManager
             local_only=stats.local_only,
             errors=stats.errors,
             last_push=stats.last_push,
-            last_pull=stats.last_pull,
         )
 
     @app.post("/api/sync/push")
@@ -223,17 +256,26 @@ def create_app(brain: BrainManager, sync: SyncEngine, auth: Optional[AuthManager
         note = brain.get(note_id)
         return NoteOut.from_note(note)
 
-    @app.post("/api/sync/pull")
-    def sync_pull():
-        """Pull cluster info da COT e aggiorna metadati locali."""
-        return sync.pull_clusters()
-
-    @app.post("/api/sync/full")
-    def sync_full():
-        """Push pending + pull clusters in un colpo solo."""
-        return sync.full_sync()
+    # ── Static UI mount ────────────────────────────────────────────────────────
+    # Must be LAST: it's mounted at "/" with html=True so it would otherwise
+    # intercept /api/* routes registered above. FastAPI walks routes in order
+    # and mounts are last-priority anyway, but we register it here to be explicit.
+    _mount_ui(app)
 
     return app
+
+
+def _mount_ui(app: FastAPI) -> None:
+    """Mount the built React UI at `/`. Skip-with-warning if dist isn't built yet."""
+    index_html = _UI_DIST / "index.html"
+    if not index_html.exists():
+        logger.warning(
+            f"UI not built at {_UI_DIST}. Run `npm run build` in ui/ "
+            f"or use start.sh (auto-builds on first run)."
+        )
+        return
+    app.mount("/", StaticFiles(directory=str(_UI_DIST), html=True), name="ui")
+    logger.info(f"UI mounted at / from {_UI_DIST}")
 
 
 # ── Runner del server in thread separato ─────────────────────────────────────
@@ -241,16 +283,24 @@ def create_app(brain: BrainManager, sync: SyncEngine, auth: Optional[AuthManager
 class LocalAPIServer:
     """Avvia FastAPI in un daemon thread accanto al polling loop."""
 
-    def __init__(self, brain: BrainManager, sync: SyncEngine, auth: Optional[AuthManager] = None, port: int = 7070):
-        self.brain  = brain
-        self.sync   = sync
-        self.auth   = auth
-        self.port   = port
+    def __init__(
+        self,
+        brain: BrainManager,
+        sync: SyncEngine,
+        auth: Optional[AuthManager] = None,
+        port: int = 7070,
+        cloud_enabled: bool = False,
+    ):
+        self.brain         = brain
+        self.sync          = sync
+        self.auth          = auth
+        self.port          = port
+        self.cloud_enabled = cloud_enabled
         self._thread: Optional[threading.Thread] = None
         self._server: Optional[uvicorn.Server]   = None
 
     def start(self):
-        app = create_app(self.brain, self.sync, self.auth)
+        app = create_app(self.brain, self.sync, self.auth, cloud_enabled=self.cloud_enabled)
         config = uvicorn.Config(
             app,
             host="127.0.0.1",
@@ -268,7 +318,6 @@ class LocalAPIServer:
         self._thread.start()
         # Piccola attesa per lasciar partire uvicorn
         import time; time.sleep(0.5)
-        from loguru import logger
         logger.info(f"Local API ready on http://127.0.0.1:{self.port}")
 
     def stop(self):

@@ -31,6 +31,163 @@ akaion run
 ./start.sh
 ```
 
+## 📦 Build native app (.dmg / .msi / .AppImage)
+
+L'app desktop è un **Tauri 2 shell** che incapsula il daemon Python come **sidecar PyInstaller**.
+
+### Mac (.dmg)
+```bash
+# Prerequisiti
+#   • Rust toolchain → https://rustup.rs
+#   • Node 18+ (npm)
+#   • Python venv già creato (./install.sh oppure ./start.sh una volta)
+
+cd akaion-app-runner
+
+# 1. Build sidecar Python (PyInstaller onefile)
+./scripts/build-sidecar.sh
+#   → produces ui/src-tauri/binaries/akaion-runner-<triple>
+
+# 2. Build Tauri shell + bundle .dmg
+cd ui
+npm install
+npm run tauri:build
+#   → src-tauri/target/release/bundle/dmg/Akaion Runner_<ver>_<arch>.dmg
+#   → src-tauri/target/release/bundle/macos/Akaion Runner.app
+```
+
+### Dev mode (hot-reload UI + sidecar real)
+```bash
+./start.sh --tauri-dev
+```
+
+### Windows / Linux
+Build script + Tauri targets sono configurati. I bundle Win (`.exe` NSIS), Linux (`.AppImage` + `.deb`) e i due `.dmg` Mac vengono prodotti dal workflow GitHub Actions `release.yml`.
+
+---
+
+## 🚢 Cutting a release
+
+Tutti i bundle cross-platform vengono compilati da `.github/workflows/release.yml`. Il workflow gira **solo** quando l'utente pusha un tag `v*` o lancia manualmente la action.
+
+### 1. Bump version
+Allinea la versione in TUTTI questi file (devono coincidere altrimenti i bundle hanno nomi inconsistenti):
+
+- `ui/package.json` → `"version"`
+- `ui/src-tauri/Cargo.toml` → `[package] version`
+- `ui/src-tauri/tauri.conf.json` → `"version"`
+
+> Nota: `runner/__init__.py` non espone `__version__` al momento, quindi non serve toccarlo.
+
+### 2. Tag & push
+```bash
+git add ui/package.json ui/src-tauri/Cargo.toml ui/src-tauri/tauri.conf.json
+git commit -m "release: v0.1.0"
+git tag v0.1.0
+git push origin main --tags
+```
+
+### 3. Cosa fa la CI
+- Job `build` gira in parallelo su 4 runner: `macos-14` (M-series), `macos-13` (Intel), `windows-latest`, `ubuntu-22.04`.
+- Ogni runner: setup Python 3.11 → setup Node 20 → setup Rust stable → build UI (`vite`) → PyInstaller (sidecar onefile) → `tauri build --target <triple>` → carica gli artifact (`.dmg` / `.exe` / `.msi` / `.AppImage` / `.deb`).
+- Job `release` (solo su tag push): scarica tutti gli artifact, li appiattisce in `release-assets/` e crea una **GitHub Release DRAFT, prerelease=true**.
+
+### 4. Review & publish
+- Apri GitHub → Releases → la draft appena creata.
+- Controlla che ci siano tutti gli asset attesi (5 file: 2× dmg, 1× exe, 1× AppImage, 1× deb — l'`.msi` Windows è opzionale).
+- Quando sei pronto, premi **Publish release**.
+
+### Manual build (smoke test — niente release)
+- GitHub → Actions → workflow **release** → **Run workflow** → scegli il branch.
+- Il job `release` viene saltato (è gated su `startsWith(github.ref, 'refs/tags/v')`).
+- Scarica i bundle da **Actions → run → Artifacts** (retention 14 giorni).
+
+### Tempi & costi
+- Primo build (cache cargo vuota): ~25-35 min totali, dominati da macOS Apple Silicon.
+- Build successivi (cache popolata): ~10-15 min.
+- I runner macOS consumano minuti GitHub Actions a tariffa 10× rispetto a Linux. Evita di lanciare il workflow per ogni commit.
+
+### Note di firma
+Le build sono **unsigned**:
+- macOS Gatekeeper: al primo lancio, right-click → Open.
+- Windows SmartScreen: "More info" → "Run anyway".
+- Linux: AppImage richiede `chmod +x`, `.deb` si installa con `sudo dpkg -i`.
+
+Apple notarization e Windows EV cert sono pianificati per **Step 7c**; richiederanno secrets aggiuntivi nel repo (`APPLE_*`, `WINDOWS_CERTIFICATE_*`, `TAURI_SIGNING_PRIVATE_KEY`).
+
+---
+
+## 🔄 Auto-update
+
+L'app, al lancio, fa un GET silenzioso al manifest GitHub
+(`https://github.com/Akaion-repos/akaion-app-runner/releases/latest/download/latest.json`).
+Se la versione nel manifest è > di quella installata, in cima alla finestra
+compare un banner non-bloccante:
+
+```
+┌─────────────────────────────────────────────┐
+│ ^ Akaion Runner 0.2.0 disponibile           │
+│ [Aggiorna ora] [Dopo]                       │
+└─────────────────────────────────────────────┘
+```
+
+- **Aggiorna ora**: il plugin Tauri scarica il bundle, verifica la firma
+  contro la public key embedded nell'app, lo applica e fa relaunch.
+- **Dopo**: dismiss locale per la sessione corrente. Riappare al prossimo avvio.
+- Se non c'è rete o il manifest non risponde entro 10s → silenzio, nessun banner.
+- In modalità web (`npm run dev` da browser) il banner non si mostra mai.
+
+### First-time setup (publisher only)
+
+L'auto-update **richiede una signing keypair Tauri** (separata da Apple/Windows code signing).
+Una sola volta, prima del primo tag con auto-update attivo:
+
+1. Genera le chiavi:
+   ```bash
+   ./scripts/generate-updater-keys.sh
+   ```
+   Lo script ti chiede una password (NON skippare) e scrive
+   `~/.tauri/akaion-runner.key`. Stampa la **public key**.
+
+2. Apri `ui/src-tauri/tauri.conf.json` → `plugins.updater.pubkey` e sostituisci
+   `PLACEHOLDER_PUBLIC_KEY_GENERATED_BY_TAURI_SIGNER` con il valore stampato.
+   Commit + push: ora le release verificano i bundle contro questa public key.
+
+3. GitHub repo → Settings → Secrets and variables → Actions → New secret:
+   - `TAURI_SIGNING_PRIVATE_KEY` = contenuto integrale del file `~/.tauri/akaion-runner.key`
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = la password che hai impostato
+
+4. **Backup off-machine** del file `~/.tauri/akaion-runner.key`. Se lo perdi,
+   ogni client già installato rifiuterà ogni futuro update (signature mismatch);
+   l'unica soluzione sarebbe forzare i client a reinstallare manualmente.
+
+5. (Opzionale ma consigliato) crea un file `SIGNING.md` locale — NON viene
+   committato (è in `.gitignore`) — con location della key + password manager
+   reference + data di rotazione, per il te del futuro.
+
+6. Cut a release come da sezione **Cutting a release** (più sotto): la CI
+   firma automaticamente ogni bundle e pubblica `latest.json` insieme ai `.dmg`/`.exe`/ecc.
+
+### Che cosa pubblica la CI
+
+Sotto `release-assets/` la action carica:
+- `*.dmg` / `*.exe` / `*.AppImage` / `*.deb` (bundle utenti)
+- `*.dmg.sig` / `*.exe.sig` / `*.AppImage.sig` (firme — necessarie al manifest)
+- `latest.json` (consumato dal plugin updater client)
+
+`.deb` non ha entry nel manifest: chi installa via apt aggiorna via apt.
+
+---
+
+## 🌐 Web UI
+
+Il runner espone una UI web su `http://127.0.0.1:7070` (stesso processo, no Tauri).
+
+- **Accesso**: apri `http://127.0.0.1:7070` dopo `./start.sh`.
+- **Login**: Firebase (Google o Email/Password) usando il progetto prod.
+- **Auto-build**: al primo `./start.sh` la UI viene buildata in `ui/dist/` (richiede Node 18+).
+- **Rebuild manuale**: `cd ui && npm install && npm run build` — oppure `./start.sh --rebuild-ui`.
+
 ## 📝 Comandi Disponibili
 
 ### `akaion login`
