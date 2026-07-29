@@ -1,14 +1,18 @@
 """
 Tests for PermissionManager — including coverage of new tools.
 """
-import pytest
-from pathlib import Path
 
 from runner.permissions.manager import PermissionManager
 
 
-def make_manager(allowed=None, denied=None, shell_enabled=True,
-                 allowed_cmds=None, denied_cmds=None, allowed_domains=None):
+def make_manager(
+    allowed=None,
+    denied=None,
+    shell_enabled=True,
+    allowed_cmds=None,
+    denied_cmds=None,
+    allowed_domains=None,
+):
     config = {
         "permissions": {
             "filesystem": {
@@ -41,10 +45,7 @@ class TestFilesystemPermissions:
         assert not pm.check_tool_permission("filesystem", {"path": str(secret)})
 
     def test_denied_overrides_allowed(self, tmp_path):
-        pm = make_manager(
-            allowed=[str(tmp_path)],
-            denied=[str(tmp_path)]
-        )
+        pm = make_manager(allowed=[str(tmp_path)], denied=[str(tmp_path)])
         assert not pm.check_tool_permission("filesystem", {"path": str(tmp_path / "f.txt")})
 
     def test_no_allowed_list_permits_all(self, tmp_path):

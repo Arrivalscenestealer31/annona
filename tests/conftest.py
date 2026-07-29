@@ -1,19 +1,17 @@
 """
 Shared fixtures for all runner tests.
 """
-import pytest
-from pathlib import Path
 
+import pytest
 
 # ── Minimal config fixture ────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def minimal_config(tmp_path):
-    """Config minimale con tutti i tools abilitati e permessi aperti."""
+    """Minimal config: every tool enabled, permissions wide open."""
     return {
-        "tools": {
-            "enabled": ["filesystem", "shell", "document_reader", "explorer"]
-        },
+        "tools": {"enabled": ["filesystem", "shell", "document_reader", "explorer"]},
         "permissions": {
             "filesystem": {
                 "allowed_paths": [str(tmp_path)],
@@ -22,7 +20,7 @@ def minimal_config(tmp_path):
             },
             "shell": {
                 "enabled": True,
-                "allowed_commands": [],   # vuoto = tutto permesso
+                "allowed_commands": [],  # empty means everything is allowed
                 "denied_commands": ["rm -rf /"],
             },
             "network": {"enabled": True},
@@ -38,11 +36,9 @@ def minimal_config(tmp_path):
 
 @pytest.fixture
 def open_config(tmp_path):
-    """Config completamente aperta (nessun allowed_paths = tutto permesso)."""
+    """Fully open config: no allowed_paths means everything is allowed."""
     return {
-        "tools": {
-            "enabled": ["filesystem", "shell", "document_reader", "explorer"]
-        },
+        "tools": {"enabled": ["filesystem", "shell", "document_reader", "explorer"]},
         "permissions": {
             "filesystem": {
                 "allowed_paths": [],
@@ -60,10 +56,11 @@ def open_config(tmp_path):
 
 # ── Sample directory tree ─────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def sample_dir(tmp_path):
     """
-    Crea un albero di cartelle/file di esempio:
+    Creates a small sample directory tree:
       sample_dir/
         reports/
           q1_report.txt
@@ -118,7 +115,7 @@ def sample_dir(tmp_path):
         "#!/bin/bash\nset -e\necho 'Deploying...'\ndocker build -t app .\ndocker push app\n"
     )
     (scripts / "build.py").write_text(
-        "#!/usr/bin/env python3\n\"\"\"Build script.\"\"\"\nimport subprocess\n\n"
+        '#!/usr/bin/env python3\n"""Build script."""\nimport subprocess\n\n'
         "def build():\n    subprocess.run(['python', 'setup.py', 'sdist'])\n\n"
         "if __name__ == '__main__':\n    build()\n"
     )

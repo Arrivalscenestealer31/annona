@@ -4,15 +4,12 @@ Tests for the agentic loop in AIClient.reason_and_execute.
 Uses Anthropic's native tool-use loop.
 All LLM calls are mocked — no network required.
 """
-import json
-import pytest
-from unittest.mock import MagicMock, patch, call
-from pathlib import Path
+
+from unittest.mock import MagicMock, patch
 
 from runner.ai_client import AIClient
-from runner.tools.registry import ToolRegistry
 from runner.permissions.manager import PermissionManager
-
+from runner.tools.registry import ToolRegistry
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -35,8 +32,7 @@ ANTHROPIC_CONFIG = {
 def make_anthropic_client(mock_anthropic_client):
     """Build AIClient with Anthropic provider, injecting mock."""
     with patch("anthropic.Anthropic", return_value=mock_anthropic_client):
-        client = AIClient(ANTHROPIC_CONFIG)
-    return client
+        return AIClient(ANTHROPIC_CONFIG)
 
 
 def _make_text_block(text: str):
@@ -63,6 +59,7 @@ def _make_response(blocks, stop_reason="end_turn"):
 
 
 # ── Direct end_turn (no tools) ────────────────────────────────────────────────
+
 
 class TestDirectResponse:
     def test_direct_text_response(self, tmp_path):
@@ -100,6 +97,7 @@ class TestDirectResponse:
 
 # ── Single tool call ──────────────────────────────────────────────────────────
 
+
 class TestSingleToolCall:
     def test_calls_filesystem_list(self, tmp_path):
         # Step 1: AI asks to list a directory
@@ -107,13 +105,10 @@ class TestSingleToolCall:
         (tmp_path / "notes.txt").write_text("hello")
 
         tool_block = _make_tool_use_block(
-            "tu_1", "filesystem",
-            {"operation": "list", "path": str(tmp_path)}
+            "tu_1", "filesystem", {"operation": "list", "path": str(tmp_path)}
         )
         first_response = _make_response([tool_block], stop_reason="tool_use")
-        second_response = _make_response(
-            [_make_text_block(f"Found notes.txt in {tmp_path}")]
-        )
+        second_response = _make_response([_make_text_block(f"Found notes.txt in {tmp_path}")])
 
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = [first_response, second_response]
@@ -133,10 +128,7 @@ class TestSingleToolCall:
         assert "notes.txt" in str(result["tool_calls"][0]["result"])
 
     def test_calls_shell_tool(self, tmp_path):
-        tool_block = _make_tool_use_block(
-            "tu_2", "shell",
-            {"command": "echo hello"}
-        )
+        tool_block = _make_tool_use_block("tu_2", "shell", {"command": "echo hello"})
         first_response = _make_response([tool_block], stop_reason="tool_use")
         second_response = _make_response([_make_text_block("Shell said hello")])
 
@@ -158,8 +150,7 @@ class TestSingleToolCall:
 
     def test_calls_explorer_map(self, sample_dir):
         tool_block = _make_tool_use_block(
-            "tu_3", "explorer",
-            {"operation": "map", "path": str(sample_dir)}
+            "tu_3", "explorer", {"operation": "map", "path": str(sample_dir)}
         )
         first_response = _make_response([tool_block], stop_reason="tool_use")
         second_response = _make_response([_make_text_block("Directory mapped.")])
@@ -185,14 +176,9 @@ class TestSingleToolCall:
         f = tmp_path / "report.txt"
         f.write_text("Revenue: 5,000,000\nProfit: 1,200,000\n")
 
-        tool_block = _make_tool_use_block(
-            "tu_4", "document_reader",
-            {"path": str(f)}
-        )
+        tool_block = _make_tool_use_block("tu_4", "document_reader", {"path": str(f)})
         first_response = _make_response([tool_block], stop_reason="tool_use")
-        second_response = _make_response(
-            [_make_text_block("The report shows revenue of 5M.")]
-        )
+        second_response = _make_response([_make_text_block("The report shows revenue of 5M.")])
 
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = [first_response, second_response]
@@ -205,11 +191,15 @@ class TestSingleToolCall:
 
         result = ai.reason_and_execute(f"Read {f}", {}, tools, perms)
 
-        assert result["tool_calls"][0]["result"]["content"] == "Revenue: 5,000,000\nProfit: 1,200,000\n"
+        assert (
+            result["tool_calls"][0]["result"]["content"]
+            == "Revenue: 5,000,000\nProfit: 1,200,000\n"
+        )
         assert result["response"] == "The report shows revenue of 5M."
 
 
 # ── Multi-step chain ──────────────────────────────────────────────────────────
+
 
 class TestMultiStepChain:
     def test_explore_then_read_chain(self, sample_dir):
@@ -222,12 +212,10 @@ class TestMultiStepChain:
           5. AI responds with final summary
         """
         explore_block = _make_tool_use_block(
-            "tu_a", "explorer",
-            {"operation": "find", "path": str(sample_dir), "pattern": "*.txt"}
+            "tu_a", "explorer", {"operation": "find", "path": str(sample_dir), "pattern": "*.txt"}
         )
         read_block = _make_tool_use_block(
-            "tu_b", "document_reader",
-            {"path": str(sample_dir / "reports" / "q1_report.txt")}
+            "tu_b", "document_reader", {"path": str(sample_dir / "reports" / "q1_report.txt")}
         )
 
         resp1 = _make_response([explore_block], stop_reason="tool_use")
@@ -288,12 +276,12 @@ class TestMultiStepChain:
 
 # ── Permission enforcement ────────────────────────────────────────────────────
 
+
 class TestPermissions:
     def test_denied_path_returns_error_result(self, tmp_path):
         """When PermissionManager denies a tool call, we get an error result — not an exception."""
         tool_block = _make_tool_use_block(
-            "tu_deny", "filesystem",
-            {"operation": "read", "path": str(tmp_path / "secret.txt")}
+            "tu_deny", "filesystem", {"operation": "read", "path": str(tmp_path / "secret.txt")}
         )
         first_response = _make_response([tool_block], stop_reason="tool_use")
         second_response = _make_response([_make_text_block("I couldn't read the file.")])
@@ -347,6 +335,7 @@ class TestPermissions:
 
 # ── Max iterations safety ─────────────────────────────────────────────────────
 
+
 class TestMaxIterations:
     def test_stops_at_max_iterations(self):
         """Loop never calls end_turn — must stop at max_iterations."""
@@ -370,12 +359,11 @@ class TestMaxIterations:
 
 # ── Context injection ─────────────────────────────────────────────────────────
 
+
 class TestContextInjection:
     def test_context_included_in_system_prompt(self):
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _make_response(
-            [_make_text_block("Done.")]
-        )
+        mock_client.messages.create.return_value = _make_response([_make_text_block("Done.")])
 
         with patch("anthropic.Anthropic", return_value=mock_client):
             ai = AIClient(ANTHROPIC_CONFIG)
@@ -393,9 +381,7 @@ class TestContextInjection:
 
     def test_tool_schemas_passed_to_api(self):
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = _make_response(
-            [_make_text_block("OK.")]
-        )
+        mock_client.messages.create.return_value = _make_response([_make_text_block("OK.")])
 
         with patch("anthropic.Anthropic", return_value=mock_client):
             ai = AIClient(ANTHROPIC_CONFIG)
@@ -440,14 +426,15 @@ def _make_akaion_ai(mock_cloud_client):
     so we patch it at its source: runner.auth.AuthManager.
     AIBackendClient is imported at module level in ai_client, patched there.
     """
-    with patch("runner.auth.AuthManager") as MockAuth:
-        with patch("runner.ai_client.AIBackendClient", return_value=mock_cloud_client):
-            mock_auth = MagicMock()
-            mock_auth.get_api_key.return_value = "fake-key"
-            mock_auth.get_runner_id.return_value = "runner-test-123"
-            MockAuth.return_value = mock_auth
-            ai = AIClient(AKAION_CONFIG)
-    return ai
+    with (
+        patch("runner.auth.AuthManager") as MockAuth,
+        patch("runner.ai_client.AIBackendClient", return_value=mock_cloud_client),
+    ):
+        mock_auth = MagicMock()
+        mock_auth.get_api_key.return_value = "fake-key"
+        mock_auth.get_runner_id.return_value = "runner-test-123"
+        MockAuth.return_value = mock_auth
+        return AIClient(AKAION_CONFIG)
 
 
 def _akaion_turn(content_blocks, stop_reason="end_turn"):
@@ -509,8 +496,11 @@ class TestAkaionSingleToolCall:
         mock_client.runner_id = "runner-test-123"
         mock_client.runner_agent_turn.side_effect = [
             _akaion_turn(
-                [_tool_use_block("tu_1", "filesystem",
-                                 {"operation": "list", "path": str(tmp_path)})],
+                [
+                    _tool_use_block(
+                        "tu_1", "filesystem", {"operation": "list", "path": str(tmp_path)}
+                    )
+                ],
                 stop_reason="tool_use",
             ),
             _akaion_turn([_text_block(f"Found doc.txt in {tmp_path}")]),
@@ -535,8 +525,11 @@ class TestAkaionSingleToolCall:
         mock_client.runner_id = "runner-test-123"
         mock_client.runner_agent_turn.side_effect = [
             _akaion_turn(
-                [_tool_use_block("tu_2", "explorer",
-                                 {"operation": "map", "path": str(sample_dir)})],
+                [
+                    _tool_use_block(
+                        "tu_2", "explorer", {"operation": "map", "path": str(sample_dir)}
+                    )
+                ],
                 stop_reason="tool_use",
             ),
             _akaion_turn([_text_block("Tree mapped.")]),
@@ -598,15 +591,24 @@ class TestAkaionMultiStep:
         mock_client.runner_agent_turn.side_effect = [
             # Step 1: find .txt files
             _akaion_turn(
-                [_tool_use_block("tu_a", "explorer",
-                                 {"operation": "find", "path": str(sample_dir),
-                                  "pattern": "*.txt"})],
+                [
+                    _tool_use_block(
+                        "tu_a",
+                        "explorer",
+                        {"operation": "find", "path": str(sample_dir), "pattern": "*.txt"},
+                    )
+                ],
                 stop_reason="tool_use",
             ),
             # Step 2: read q1 report
             _akaion_turn(
-                [_tool_use_block("tu_b", "document_reader",
-                                 {"path": str(sample_dir / "reports" / "q1_report.txt")})],
+                [
+                    _tool_use_block(
+                        "tu_b",
+                        "document_reader",
+                        {"path": str(sample_dir / "reports" / "q1_report.txt")},
+                    )
+                ],
                 stop_reason="tool_use",
             ),
             # Step 3: final answer
@@ -636,8 +638,7 @@ class TestAkaionMultiStep:
         mock_client.runner_id = "runner-test-123"
         mock_client.runner_agent_turn.side_effect = [
             _akaion_turn(
-                [_tool_use_block("tu_msg", "filesystem",
-                                 {"operation": "read", "path": str(f)})],
+                [_tool_use_block("tu_msg", "filesystem", {"operation": "read", "path": str(f)})],
                 stop_reason="tool_use",
             ),
             _akaion_turn([_text_block("Done.")]),
@@ -690,8 +691,13 @@ class TestAkaionPermissionsAndErrors:
         mock_client.runner_id = "runner-test-123"
         mock_client.runner_agent_turn.side_effect = [
             _akaion_turn(
-                [_tool_use_block("tu_d", "filesystem",
-                                 {"operation": "read", "path": str(tmp_path / "secret.txt")})],
+                [
+                    _tool_use_block(
+                        "tu_d",
+                        "filesystem",
+                        {"operation": "read", "path": str(tmp_path / "secret.txt")},
+                    )
+                ],
                 stop_reason="tool_use",
             ),
             _akaion_turn([_text_block("Permission denied.")]),

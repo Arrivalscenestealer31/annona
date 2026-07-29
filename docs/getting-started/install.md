@@ -253,7 +253,7 @@ akaion config --show
 
 # Test connectivity
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  https://api.akaion.com/health
+  https://api.prod.akaion.com/health
 ```
 
 ### Directory Structure
@@ -381,7 +381,7 @@ If you encounter issues:
 ## 📚 Next Steps
 
 After installation:
-- Read [QUICKSTART.md](QUICKSTART.md) for usage guide
-- Check [ARCHITECTURE.md](ARCHITECTURE.md) for technical details
+- Read [QUICKSTART.md](quickstart.md) for usage guide
+- Check [ARCHITECTURE.md](../design/architecture.md) for technical details
 - Configure permissions in `~/.akaion/config.yaml`
 - Set up auto-start with systemd/launchd

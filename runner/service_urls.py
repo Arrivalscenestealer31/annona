@@ -3,7 +3,7 @@ Service URL Resolver
 
 Resolves the URL of each Akaion backend the runner talks to:
 
-  - AKAION_API_BASE   (default: https://api.akaion.com)
+  - AKAION_API_BASE   (default: https://api.prod.akaion.com)
   - ENVIRONMENT       (development | production, default: production)
   - Per-service override: AKAION_MAIN_URL / AKAION_AI_URL / AKAION_COT_URL
 
@@ -22,29 +22,29 @@ The runner only consumes these three backends:
 
 Explicit per-service overrides win over the resolver.
 """
+
 import os
 from typing import Dict
 
-
 _SERVICE_PATH: Dict[str, str] = {
     "main": "/api/service1",
-    "cot":  "/api/service3",
-    "ai":   "/api/service4",
+    "cot": "/api/service3",
+    "ai": "/api/service4",
 }
 
 _SERVICE_DEV_PORT: Dict[str, int] = {
     "main": 8080,
-    "cot":  8083,
-    "ai":   8084,
+    "cot": 8083,
+    "ai": 8084,
 }
 
 _SERVICE_OVERRIDE_ENV: Dict[str, str] = {
     "main": "AKAION_MAIN_URL",
-    "cot":  "AKAION_COT_URL",
-    "ai":   "AKAION_AI_URL",
+    "cot": "AKAION_COT_URL",
+    "ai": "AKAION_AI_URL",
 }
 
-DEFAULT_API_BASE = "https://api.akaion.com"
+DEFAULT_API_BASE = "https://api.prod.akaion.com"
 
 
 def _is_dev() -> bool:
@@ -65,8 +65,7 @@ def resolve_service_url(service: str) -> str:
     key = service.strip().lower()
     if key not in _SERVICE_PATH:
         raise ValueError(
-            f"Unknown service '{service}'. "
-            f"Valid: {', '.join(_SERVICE_PATH.keys())}"
+            f"Unknown service '{service}'. " f"Valid: {', '.join(_SERVICE_PATH.keys())}"
         )
 
     override = os.getenv(_SERVICE_OVERRIDE_ENV[key])

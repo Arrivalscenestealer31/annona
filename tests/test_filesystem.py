@@ -1,8 +1,10 @@
 """
 Tests for FilesystemTool — including the new 'search' operation.
 """
-import pytest
+
 from pathlib import Path
+
+import pytest
 
 from runner.tools.filesystem import FilesystemTool
 
@@ -146,9 +148,7 @@ class TestSearch:
         assert len(results) >= 7  # all non-hidden files
 
     def test_search_nonrecursive(self, sample_dir):
-        results = make_tool().execute(
-            "search", str(sample_dir), pattern="*.txt", recursive=False
-        )
+        results = make_tool().execute("search", str(sample_dir), pattern="*.txt", recursive=False)
         # .txt files are inside subdirs, not at root level
         assert len(results) == 0
 

@@ -1,0 +1,183 @@
+/* Dogana — documentation theme.
+ *
+ * A border post should look like one: dark, precise, a little official. The
+ * accent is customs-stamp red, used sparingly enough that it still means
+ * something when it appears.
+ *
+ * Everything here is self-hosted. No CDN fonts, no remote assets — a project
+ * whose claim is "nothing leaves" cannot have documentation that phones home.
+ */
+
+:root {
+  --dg-red: #d64545;
+  --dg-red-dim: #a83535;
+  --dg-ink: #0b0d12;
+  --dg-ink-soft: #141821;
+  --dg-line: #232936;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: var(--dg-ink);
+  --md-accent-fg-color: var(--dg-red);
+  --md-default-bg-color: var(--dg-ink);
+  --md-code-bg-color: var(--dg-ink-soft);
+  --md-typeset-a-color: #7aa2f7;
+}
+
+[data-md-color-scheme="default"] {
+  --md-accent-fg-color: var(--dg-red-dim);
+}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+
+.dg-hero {
+  margin: 0 0 3rem;
+  padding: 3.5rem 2rem 3rem;
+  border: 1px solid var(--dg-line);
+  border-radius: 14px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(214, 69, 69, 0.14), transparent 62%),
+    linear-gradient(180deg, var(--dg-ink-soft), var(--dg-ink));
+}
+
+[data-md-color-scheme="default"] .dg-hero {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(214, 69, 69, 0.09), transparent 62%),
+    linear-gradient(180deg, #ffffff, #f4f5f7);
+  border-color: #e3e5ea;
+}
+
+.dg-hero__eyebrow {
+  display: inline-block;
+  margin-bottom: 1.4rem;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid var(--dg-red);
+  border-radius: 999px;
+  color: var(--dg-red);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.dg-hero__title {
+  margin: 0 0 0.4rem;
+  font-size: 3.6rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.dg-hero__stamp {
+  color: var(--dg-red);
+}
+
+.dg-hero__tagline {
+  margin: 0 0 1.2rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.dg-hero__sub {
+  max-width: 34rem;
+  margin: 0 auto;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  opacity: 0.75;
+}
+
+.dg-hero__meta {
+  margin-top: 1.8rem;
+  font-family: var(--md-code-font-family, monospace);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+
+/* ── Vocabulary table ──────────────────────────────────────────────────── */
+
+.dg-terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 1.6rem 0 2.4rem;
+}
+
+.dg-term {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--dg-line);
+  border-left: 3px solid var(--dg-red);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-md-color-scheme="default"] .dg-term {
+  border-color: #e3e5ea;
+  border-left-color: var(--dg-red-dim);
+  background: #fafbfc;
+}
+
+.dg-term__name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.dg-term__desc {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  opacity: 0.75;
+}
+
+/* ── Status pills, used in the honesty tables ──────────────────────────── */
+
+.dg-pill {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dg-pill--cleared {
+  background: rgba(46, 160, 90, 0.16);
+  color: #35b46a;
+}
+
+.dg-pill--held {
+  background: rgba(214, 69, 69, 0.16);
+  color: var(--dg-red);
+}
+
+.dg-pill--open {
+  background: rgba(224, 168, 61, 0.16);
+  color: #e0a83d;
+}
+
+/* ── Typography polish ─────────────────────────────────────────────────── */
+
+.md-typeset h1,
+.md-typeset h2 {
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset table:not([class]) th {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media screen and (max-width: 44em) {
+  .dg-hero {
+    padding: 2.4rem 1.2rem;
+  }
+
+  .dg-hero__title {
+    font-size: 2.4rem;
+  }
+}

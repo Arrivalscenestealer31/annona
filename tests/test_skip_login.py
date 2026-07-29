@@ -8,51 +8,57 @@ Coverage:
   not construct any httpx client (no network call).
 - /api/runner/mode endpoint reports `mode=local` and the vault path.
 """
+
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from runner.auth import AuthManager
 from runner.brain.manager import BrainManager
-from runner.sync.engine import SyncEngine, SyncError
 from runner.local_api import create_app
 from runner.main import RunnerDaemon
-
+from runner.sync.engine import SyncEngine, SyncError
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_daemon_config(tmp_path: Path, cloud_enabled: bool = False) -> dict:
     return {
         "cloud": {
-            "enabled":          cloud_enabled,
-            "api_url":          "http://localhost:8080",
+            "enabled": cloud_enabled,
+            "api_url": "http://localhost:8080",
             "polling_interval": 5,
-            "timeout":          30,
+            "timeout": 30,
         },
         "permissions": {
-            "filesystem": {"allowed_paths": [str(tmp_path)], "denied_paths": [], "max_file_size_mb": 50},
-            "shell":      {"enabled": True,  "allowed_commands": []},
-            "network":    {"enabled": True},
+            "filesystem": {
+                "allowed_paths": [str(tmp_path)],
+                "denied_paths": [],
+                "max_file_size_mb": 50,
+            },
+            "shell": {"enabled": True, "allowed_commands": []},
+            "network": {"enabled": True},
         },
-        "tools":   {"enabled": []},
-        "ai":      {"provider": "akaion"},
-        "runner":  {"max_concurrent_tasks": 1, "capture_to_brain": False},
+        "tools": {"enabled": []},
+        "ai": {"provider": "akaion"},
+        "runner": {"max_concurrent_tasks": 1, "capture_to_brain": False},
         "logging": {"level": "WARNING", "file": str(tmp_path / "runner.log")},
-        "brain":   {"dir": str(tmp_path / "brain")},
+        "brain": {"dir": str(tmp_path / "brain")},
     }
 
 
 @pytest.fixture
 def unauthed_auth(tmp_path, monkeypatch):
     """AuthManager pointing at an empty config dir → not authenticated."""
-    monkeypatch.delenv("AKAION_API_KEY",   raising=False)
+    monkeypatch.delenv("AKAION_API_KEY", raising=False)
     monkeypatch.delenv("AKAION_RUNNER_ID", raising=False)
     return AuthManager(config_dir=tmp_path / ".akaion")
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
+
 
 def test_daemon_boots_without_auth(tmp_path, unauthed_auth, monkeypatch):
     """
@@ -92,7 +98,7 @@ def test_brain_offline_crud_and_search(tmp_path):
     """BrainManager must work fully offline."""
     brain = BrainManager(tmp_path / "brain")
     n1 = brain.create(title="Note one", content="hello world", tags=["lab"])
-    n2 = brain.create(title="Pasta",    content="ricetta cacio e pepe", tags=["food"])
+    n2 = brain.create(title="Pasta", content="ricetta cacio e pepe", tags=["food"])
 
     assert brain.get(n1.id) is not None
 
@@ -136,7 +142,7 @@ def test_sync_push_pending_skips_when_unauthenticated(tmp_path, unauthed_auth):
 
 def test_sync_client_raises_sync_error_when_no_token(tmp_path, unauthed_auth):
     """_client() must raise SyncError('not_authenticated') without a token."""
-    brain  = BrainManager(tmp_path / "brain")
+    brain = BrainManager(tmp_path / "brain")
     engine = SyncEngine(brain=brain, cot_url="http://localhost:9999", auth=unauthed_auth)
 
     with pytest.raises(SyncError) as ei:
@@ -160,15 +166,15 @@ def test_no_cloud_flag_overrides_enabled(tmp_path, unauthed_auth, monkeypatch):
 
 def test_runner_mode_endpoint_reports_local(tmp_path, unauthed_auth):
     """GET /api/runner/mode → mode=local, vault_path set."""
-    brain  = BrainManager(tmp_path / "brain")
+    brain = BrainManager(tmp_path / "brain")
     engine = SyncEngine(brain=brain, cot_url="http://localhost:9999", auth=unauthed_auth)
-    app    = create_app(brain, engine, unauthed_auth, cloud_enabled=False)
+    app = create_app(brain, engine, unauthed_auth, cloud_enabled=False)
     client = TestClient(app)
 
     r = client.get("/api/runner/mode")
     assert r.status_code == 200
     data = r.json()
-    assert data["mode"]          == "local"
+    assert data["mode"] == "local"
     assert data["cloud_enabled"] is False
     assert data["authenticated"] is False
     assert str(tmp_path / "brain") in data["vault_path"]

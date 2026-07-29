@@ -1,0 +1,108 @@
+"""Live checks against the real Akaion gateway.
+
+Skipped unless ``AKAION_LIVE=1``. CI stays hermetic — a test suite that fails
+because someone else's deployment is rolling is a test suite people learn to
+ignore — but the contract is checkable on demand:
+
+```bash
+AKAION_LIVE=1 env/bin/python -m pytest tests/test_live_cloud.py -v
+```
+
+These assert the *unauthenticated* half of the contract, which is the half that
+can be verified without credentials and the half that catches the failure that
+actually happened: the runner shipped a default base URL pointing at a host that
+does not serve the API.
+
+Set `AKAION_LIVE_TOKEN` to a Firebase ID token to exercise the authenticated
+path as well.
+"""
+
+from __future__ import annotations
+
+import os
+
+import httpx
+import pytest
+
+from runner.cloud_client import MainBackendClient
+from runner.service_urls import DEFAULT_API_BASE, resolve_service_url
+
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        os.getenv("AKAION_LIVE") != "1",
+        reason="live cloud checks are opt-in: set AKAION_LIVE=1",
+    ),
+]
+
+TIMEOUT = 15
+
+
+class TestGatewayReachable:
+    def test_the_shipped_default_serves_the_api(self):
+        """The regression that prompted this file.
+
+        `https://api.akaion.com` was the shipped default and failed the TLS
+        handshake, so a fresh clone could not sign in. The correct gateway is
+        `api.prod.akaion.com`. This test fails loudly if the default drifts back.
+        """
+        response = httpx.get(f"{DEFAULT_API_BASE}/health", timeout=TIMEOUT)
+
+        assert response.status_code == 200
+
+    def test_the_identity_service_is_up(self):
+        response = httpx.get(f"{resolve_service_url('main')}/health", timeout=TIMEOUT)
+
+        assert response.status_code == 200
+
+    def test_the_vault_sync_service_is_up(self):
+        response = httpx.get(f"{resolve_service_url('cot')}/health", timeout=TIMEOUT)
+
+        assert response.status_code == 200
+
+
+class TestContract:
+    def test_an_unauthenticated_identity_call_is_refused(self):
+        """A real API, not a catch-all: 401 with a structured body."""
+        response = httpx.get(f"{resolve_service_url('main')}/api/v1/users/me", timeout=TIMEOUT)
+
+        assert response.status_code == 401
+        assert "json" in response.headers.get("content-type", "")
+        assert response.json().get("detail")
+
+    def test_a_bogus_token_is_refused(self):
+        client = MainBackendClient(api_key="not-a-real-token")
+
+        assert client.verify_auth() is False
+
+    @pytest.mark.parametrize(
+        ("service", "path"),
+        [
+            ("cot", "/api/v1/cloud/thoughts"),
+            ("ai", "/api/v1/runner/agent/turn"),
+        ],
+    )
+    def test_the_write_endpoints_exist_and_are_post_only(self, service: str, path: str):
+        """405 on GET proves the route exists; 404 would mean it does not."""
+        response = httpx.get(f"{resolve_service_url(service)}{path}", timeout=TIMEOUT)
+
+        assert response.status_code == 405, (
+            f"{service}{path} answered {response.status_code}; "
+            "404 means the route is missing, 200 means we hit a catch-all"
+        )
+
+
+class TestAuthenticated:
+    """Requires a real Firebase ID token in AKAION_LIVE_TOKEN."""
+
+    @pytest.fixture(autouse=True)
+    def _token(self):
+        token = os.getenv("AKAION_LIVE_TOKEN")
+        if not token:
+            pytest.skip("set AKAION_LIVE_TOKEN to exercise the authenticated path")
+        return token
+
+    def test_a_valid_token_verifies(self):
+        client = MainBackendClient(api_key=os.environ["AKAION_LIVE_TOKEN"])
+
+        assert client.verify_auth() is True

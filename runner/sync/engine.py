@@ -1,27 +1,28 @@
 """
 Sync Engine
 
-Push/Pull tra il brain locale e il COT cloud.
+Push and pull between the local vault and the cloud.
 
 Design:
 - PUSH: note con sync_status=pending_sync → POST /api/v1/cloud/thoughts
-- PULL: GET /api/v1/cloud/messages + /clusters → aggiorna cluster_info locale
-- Non tutto deve essere sincronizzato: local_only rimane locale finché
-  l'utente non chiama mark_pending() o push esplicito.
+- PULL: GET /api/v1/cloud/messages and /clusters -> refresh local cluster_info
+- Not everything is synced: local_only notes stay local until
+  mark_pending() or an explicit push is called.
 
-Local-first: ogni metodo verifica auth PRIMA di costruire un client httpx.
-Senza credenziali la sync è un no-op silenzioso (niente Bearer None requests).
+Local-first: every method checks auth BEFORE building an httpx client.
+With no credentials sync is a silent no-op, never a `Bearer None` request.
 """
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-from loguru import logger
+
+from typing import Dict
+
 import httpx
+from loguru import logger
 
-from runner.brain.manager import BrainManager
-from runner.brain.models import Note, SYNC_PENDING, SYNC_ERROR
 from runner.auth import AuthManager
+from runner.brain.manager import BrainManager
+from runner.brain.models import SYNC_PENDING, Note
 
-# Errori di rete transitori: la nota resta pending_sync per riprovare dopo
+# Transient network errors: the note stays pending_sync and is retried
 _NETWORK_ERRORS = (
     httpx.ConnectError,
     httpx.ConnectTimeout,
@@ -32,11 +33,11 @@ _NETWORK_ERRORS = (
 
 
 class SyncError(Exception):
-    """Errore lato sync (auth mancante, payload invalido, ecc.)."""
+    """A sync-side failure: missing auth, invalid payload, and so on."""
 
 
 class SyncEngine:
-    """Gestisce sync bidirezionale con COT cloud."""
+    """Two-way sync with the cloud."""
 
     def __init__(
         self,
@@ -45,9 +46,9 @@ class SyncEngine:
         auth: AuthManager,
         timeout: int = 30,
     ):
-        self.brain   = brain
+        self.brain = brain
         self.cot_url = cot_url.rstrip("/")
-        self.auth    = auth
+        self.auth = auth
         self.timeout = timeout
 
     def _client(self) -> httpx.Client:
@@ -68,12 +69,12 @@ class SyncEngine:
 
     def push_pending(self) -> Dict[str, int]:
         """
-        Invia al COT tutte le note con sync_status=pending_sync.
-        Restituisce {"synced": N, "errors": M, "error"?: "not_authenticated"}.
+        Send every note with sync_status=pending_sync to the cloud.
+        Returns {"synced": N, "errors": M, "error"?: "not_authenticated"}.
         """
         pending = self.brain.list(sync_status=SYNC_PENDING)
         if not pending:
-            logger.info("Sync push: nessuna nota pending")
+            logger.info("Sync push: nothing pending")
             return {"synced": 0, "errors": 0}
 
         logger.info(f"Sync push: {len(pending)} note da inviare")
@@ -91,11 +92,11 @@ class SyncEngine:
             logger.warning(f"Sync push skipped: {e}")
             return {"synced": 0, "errors": 0, "error": str(e)}
 
-        logger.info(f"Sync push completata: {synced} ok, {errors} errori")
+        logger.info(f"Sync push complete: {synced} ok, {errors} failed")
         return {"synced": synced, "errors": errors}
 
     def push_note(self, note_id: str) -> bool:
-        """Push di una singola nota (indipendentemente dallo stato)."""
+        """Push a single note, regardless of its current state."""
         note = self.brain.get(note_id)
         if not note:
             return False
@@ -124,9 +125,9 @@ class SyncEngine:
 
             if resp.status_code in (200, 201):
                 data = resp.json()
-                # COT restituisce message_id e opzionalmente cluster
-                cot_message_id  = data.get("message_id") or data.get("id")
-                cot_cluster_id  = data.get("cluster_id")
+                # The cloud returns a message_id and optionally a cluster
+                cot_message_id = data.get("message_id") or data.get("id")
+                cot_cluster_id = data.get("cluster_id")
                 cot_cluster_name = data.get("cluster_name")
 
                 self.brain.mark_synced(
@@ -144,12 +145,13 @@ class SyncEngine:
                 return False
 
         except _NETWORK_ERRORS as e:
-            # Errore di rete transitorio → lascia pending_sync, riproverà dopo
-            logger.warning(f"Note sync offline [{note.id}]: {type(e).__name__} — rete non disponibile")
+            # Transient network error -> leave it pending_sync and retry later
+            logger.warning(
+                f"Note sync offline [{note.id}]: {type(e).__name__} — rete non disponibile"
+            )
             return False
         except Exception as e:
-            # Errore permanente (authn, payload, etc.) → marca sync_error
+            # Permanent error (auth, payload, ...) -> mark sync_error
             self.brain.mark_sync_error(note.id, str(e))
             logger.error(f"Note sync error [{note.id}]: {e}")
             return False
-

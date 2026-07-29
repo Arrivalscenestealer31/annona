@@ -65,3 +65,6 @@ build/work/
 *.key
 *.key.pub
 SIGNING.md
+
+# MkDocs build output (mkdocs.yml → site_dir: site)
+/site/

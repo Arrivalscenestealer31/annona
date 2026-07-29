@@ -36,7 +36,7 @@ export default function SyncView() {
     setPushing(true)
     try {
       const res = await sync.push()
-      setLastResult(`Push: ${res.synced} sincronizzate, ${res.errors} errori`)
+      setLastResult(`Push: ${res.synced} synced, ${res.errors} failed`)
       await loadStatus()
     } catch {
       setLastResult("Push fallita — runner non raggiungibile")
@@ -46,7 +46,7 @@ export default function SyncView() {
   }
 
   const fmt = (dt: string | null) => {
-    if (!dt) return "Mai"
+    if (!dt) return "Never"
     return new Date(dt).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
   }
 
@@ -55,7 +55,7 @@ export default function SyncView() {
       <div className="view-header">
         <div className="view-header-left">
           <div className="view-title">Sync</div>
-          <div className="view-sub">Invia le note del brain locale al cloud (push only)</div>
+          <div className="view-sub">Send local vault notes to the cloud (push only)</div>
         </div>
         <div className="flex gap-2">
           <button className="btn primary" onClick={handlePush} disabled={pushing}>
@@ -77,12 +77,12 @@ export default function SyncView() {
               <StatCard number={status.local_only} label="Local only" />
               <StatCard number={status.pending}    label="Pending"    color="var(--yellow)" />
               <StatCard number={status.synced}     label="Synced"     color="var(--green)" />
-              <StatCard number={status.errors}     label="Errori"     color="var(--red)" />
+              <StatCard number={status.errors}     label="Errors"     color="var(--red)" />
             </div>
 
             <div className="card mb-3">
               <div className="flex justify-between items-center mb-3">
-                <span style={{ fontWeight: 600, fontSize: 13 }}>Stato sincronizzazione</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>Sync status</span>
               </div>
               <div>
                 <div className="text-sub" style={{ fontSize: 11, marginBottom: 3 }}>Ultimo push</div>
@@ -94,7 +94,7 @@ export default function SyncView() {
               <div className="card" style={{ borderColor: "rgba(210,153,34,0.3)", background: "rgba(210,153,34,0.05)" }}>
                 <div className="flex items-center gap-2">
                   <span style={{ color: "var(--yellow)", fontWeight: 600 }}>
-                    {status.pending} {status.pending === 1 ? "nota" : "note"} in attesa
+                    {status.pending} {status.pending === 1 ? "note" : "notes"} waiting
                   </span>
                   <span className="text-sub">— clicca "Push pending" per sincronizzare</span>
                 </div>
@@ -107,7 +107,7 @@ export default function SyncView() {
               </div>
               <div style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.7 }}>
                 <p style={{ marginBottom: 6 }}>
-                  <strong style={{ color: "var(--text)" }}>Push</strong> — Le note marcate come "pending" vengono inviate al cloud come <em>Thought</em>.
+                  <strong style={{ color: "var(--text)" }}>Push</strong> — Notes marked "pending" are sengono inviate al cloud come <em>Thought</em>.
                   Il cloud le processa, genera embeddings e le assegna automaticamente a un cluster.
                 </p>
                 <p>
@@ -115,7 +115,7 @@ export default function SyncView() {
                   esplicitamente per sync dal Brain (tasto <em>Sync</em> nell'editor).
                 </p>
                 <p style={{ marginTop: 6 }}>
-                  <strong style={{ color: "var(--text)" }}>One-way sync</strong> — Akaion Runner pubblica verso il cloud, non scarica.
+                  <strong style={{ color: "var(--text)" }}>One-way sync</strong> — Akaion Runner publishes torso il cloud, non scarica.
                   Le note cloud restano sul cloud; quelle locali vivono sul tuo Mac.
                 </p>
               </div>

@@ -1,12 +1,13 @@
 """
 Task → Note capture helper.
 
-Salva il risultato dell'esecuzione di un task del runner come Note locale
-(`sync_status=local_only`) nel Brain. L'utente decide quando pushare la nota
-al cloud — la capture NON sincronizza automaticamente.
+Records the result of a runner task as a local note
+(`sync_status=local_only`) in the vault. You decide when to push it
+to the cloud: capturing never syncs on its own.
 
 Vedi `RunnerDaemon._capture_task_to_brain` (`runner/main.py`).
 """
+
 from __future__ import annotations
 
 import json
@@ -18,7 +19,7 @@ from loguru import logger
 from .manager import BrainManager
 from .models import Note
 
-# Soglia massima content (in bytes) — sopra: troncato + nota.
+# Maximum content size in bytes; above it the note is truncated and marked.
 MAX_CONTENT_BYTES = 100 * 1024  # 100 KB
 _TRUNC_NOTE = "\n\n_[Output truncated, full result sent to cloud only]_\n"
 
@@ -35,8 +36,8 @@ def _derive_title(task: Dict[str, Any]) -> str:
 
 def _is_failed(result: Any) -> bool:
     """
-    Considera il risultato fallito se è esplicitamente `{success: False}`
-    o un equivalente. Non assumere mai che `None` = success.
+    Treats a result as failed only when it explicitly says `{success: False}`
+    or equivalent. `None` is never assumed to mean success.
     """
     if result is None:
         return True
@@ -76,7 +77,7 @@ def _build_tags(
     failed: bool,
 ) -> Tuple[List[str], str]:
     """
-    Costruisce i tag e ritorna anche il `dedup_tag` (full uuid, no truncate)
+    Builds the tags and also returns `dedup_tag` (the full uuid, untruncated)
     da usare per il check di idempotency.
     """
     task_id = str(task.get("id", "unknown"))
@@ -107,7 +108,7 @@ def _build_content(
     result: Any,
     failed: bool,
 ) -> str:
-    """Costruisce il markdown della nota."""
+    """Render the note as markdown."""
     task_id = str(task.get("id", "unknown"))
     task_type = task.get("type", "command")
     tool_line = ""
@@ -149,21 +150,21 @@ def capture_task_as_note(
     result: Any,
 ) -> Optional[Note]:
     """
-    Salva il task come Note locale con `sync_status=local_only`.
+    Stores the task as a local note with `sync_status=local_only`.
 
-    - Idempotente: stesso task_id → 1 sola nota (check via tag `task:<uuid>`).
-    - Mai propaga eccezioni: logga WARNING e ritorna None.
-    - Non sincronizza automaticamente al cloud.
+    - Idempotent: one note per task_id, matched on the `task:<uuid>` tag.
+    - Never raises: logs a warning and returns None.
+    - Never syncs to the cloud on its own.
 
     Returns:
-        La Note creata, oppure quella esistente se già presente, oppure
-        None su errore.
+        The note created, the existing one if there already was one, or
+        None on error.
     """
     try:
         failed = _is_failed(result)
         tags, dedup_tag = _build_tags(task, failed)
 
-        # Idempotency: se esiste già una nota con tag `task:<full_uuid>` skip.
+        # Idempotency: skip if a note already carries the `task:<full_uuid>` tag.
         existing = brain.find_note_by_tag(dedup_tag)
         if existing is not None:
             logger.debug(
@@ -180,6 +181,6 @@ def capture_task_as_note(
         task_short = str(task.get("id", "unknown"))[:8]
         logger.info(f"📝 Captured task {task_short} as note {note.id[:8]}")
         return note
-    except Exception as e:  # noqa: BLE001 — mai propagare
+    except Exception as e:  # noqa: BLE001 - capturing must never fail a task
         logger.warning(f"Failed to capture task to brain: {e}")
         return None

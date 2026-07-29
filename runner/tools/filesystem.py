@@ -1,11 +1,12 @@
 """
 Filesystem Tool
 
-Tool per operazioni sul filesystem locale.
+Filesystem operations.
 """
-import fnmatch
+
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
 from loguru import logger
 
 from .base import Tool
@@ -27,27 +28,24 @@ class FilesystemTool(Tool):
                     "operation": {
                         "type": "string",
                         "enum": ["read", "write", "list", "exists", "delete", "search"],
-                        "description": "Operation to perform"
+                        "description": "Operation to perform",
                     },
-                    "path": {
-                        "type": "string",
-                        "description": "File or directory path"
-                    },
+                    "path": {"type": "string", "description": "File or directory path"},
                     "content": {
                         "type": "string",
-                        "description": "Content to write (for write operation)"
+                        "description": "Content to write (for write operation)",
                     },
                     "pattern": {
                         "type": "string",
-                        "description": "Glob pattern for search, e.g. '*.pdf' or '*report*'"
+                        "description": "Glob pattern for search, e.g. '*.pdf' or '*report*'",
                     },
                     "recursive": {
                         "type": "boolean",
-                        "description": "For search: recurse into subdirectories (default: true)"
-                    }
+                        "description": "For search: recurse into subdirectories (default: true)",
+                    },
                 },
-                "required": ["operation", "path"]
-            }
+                "required": ["operation", "path"],
+            },
         )
         self.config = config
 
@@ -58,13 +56,13 @@ class FilesystemTool(Tool):
         content: str = None,
         pattern: str = "*",
         recursive: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Any:
-        """Esegue un'operazione filesystem"""
+        """Perform a filesystem operation."""
         target_path = Path(path).expanduser().resolve()
-        
+
         logger.info(f"Filesystem operation: {operation} on {target_path}")
-        
+
         if operation == "read":
             return self._read_file(target_path)
 
@@ -87,54 +85,52 @@ class FilesystemTool(Tool):
 
         else:
             raise ValueError(f"Unknown operation: {operation}")
-    
+
     def _read_file(self, path: Path) -> str:
         """Leggi un file"""
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
-        
+
         if not path.is_file():
             raise ValueError(f"Not a file: {path}")
-        
-        with open(path, 'r', encoding='utf-8') as f:
+
+        with open(path, "r", encoding="utf-8") as f:
             return f.read()
-    
+
     def _write_file(self, path: Path, content: str) -> Dict[str, Any]:
         """Scrivi un file"""
         path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(path, 'w', encoding='utf-8') as f:
+
+        with open(path, "w", encoding="utf-8") as f:
             f.write(content)
-        
-        return {
-            "success": True,
-            "path": str(path),
-            "size": len(content)
-        }
-    
+
+        return {"success": True, "path": str(path), "size": len(content)}
+
     def _list_directory(self, path: Path) -> List[Dict[str, Any]]:
         """Lista contenuto directory"""
         if not path.exists():
             raise FileNotFoundError(f"Directory not found: {path}")
-        
+
         if not path.is_dir():
             raise ValueError(f"Not a directory: {path}")
-        
+
         items = []
         for item in path.iterdir():
-            items.append({
-                "name": item.name,
-                "path": str(item),
-                "type": "file" if item.is_file() else "directory",
-                "size": item.stat().st_size if item.is_file() else None
-            })
-        
+            items.append(
+                {
+                    "name": item.name,
+                    "path": str(item),
+                    "type": "file" if item.is_file() else "directory",
+                    "size": item.stat().st_size if item.is_file() else None,
+                }
+            )
+
         return items
-    
+
     def _check_exists(self, path: Path) -> bool:
         """Controlla se esiste"""
         return path.exists()
-    
+
     def _delete_path(self, path: Path) -> Dict[str, Any]:
         """Elimina file o directory"""
         if not path.exists():
@@ -144,12 +140,10 @@ class FilesystemTool(Tool):
             path.unlink()
         elif path.is_dir():
             import shutil
+
             shutil.rmtree(path)
 
-        return {
-            "success": True,
-            "path": str(path)
-        }
+        return {"success": True, "path": str(path)}
 
     def _search_files(self, path: Path, pattern: str, recursive: bool) -> List[Dict[str, Any]]:
         """Cerca file per nome/glob pattern"""
@@ -161,10 +155,12 @@ class FilesystemTool(Tool):
         for match in sorted(glob_fn(pattern)):
             if match.is_file():
                 stat = match.stat()
-                results.append({
-                    "name": match.name,
-                    "path": str(match),
-                    "size_mb": round(stat.st_size / (1024 * 1024), 4),
-                    "modified": stat.st_mtime,
-                })
+                results.append(
+                    {
+                        "name": match.name,
+                        "path": str(match),
+                        "size_mb": round(stat.st_size / (1024 * 1024), 4),
+                        "modified": stat.st_mtime,
+                    }
+                )
         return results

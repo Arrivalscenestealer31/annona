@@ -1,0 +1,90 @@
+site_name: Dogana
+site_description: Dogana — the perimeter for AI agents. Nothing crosses undeclared.
+site_url: https://akaion-repos.github.io/akaion-app-runner/
+repo_url: https://github.com/Akaion-repos/akaion-app-runner
+repo_name: Akaion-repos/akaion-app-runner
+edit_uri: edit/main/docs/
+copyright: Dogana — an Akaion AI Lab project · Apache-2.0
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - Quickstart: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+  - Design:
+      - Architecture as built: design/architecture.md
+      - Sovereign runtime: design/sovereign-runtime.md
+      - Local interface: design/ui.md
+  - Research:
+      - research/index.md
+  - Reference:
+      - Backends: reference/backends.md
+      - Releasing: reference/releasing.md
+      - Typing debt: reference/typing-debt.md
+  - Decisions:
+      - adr/index.md
+      - 0001 Adopt datapizza-ai: adr/0001-adopt-datapizza-ai.md
+      - 0002 Unify the agentic loop: adr/0002-unify-the-agentic-loop.md
+      - 0003 Ship an offline backend: adr/0003-offline-echo-backend.md
+      - 0004 Name the project Dogana: adr/0004-name-the-project-dogana.md
+  - Contributing: contributing.md
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - md_in_html
+
+plugins:
+  - search
+
+watch:
+  - docs

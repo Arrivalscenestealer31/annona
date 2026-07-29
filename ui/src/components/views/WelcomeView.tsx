@@ -2,8 +2,8 @@
  * Welcome / first-launch view.
  *
  * Local-first philosophy: NO login required to start using the app.
- * Primary CTA = "Apri il mio Brain" (skip cloud sync).
- * Secondary CTA = "Sincronizza con Akaion Cloud" (optional Google login).
+ * Primary CTA = "Open my vault" (skips cloud sync).
+ * Secondary CTA = "Sync with Akaion Cloud" (optional Google sign-in).
  *
  * Once dismissed (either path), `localStorage.akaion_onboarding_done = "true"`,
  * so the next launch skips this view altogether.
@@ -17,7 +17,7 @@ import SocialButton from "../auth/SocialButton";
 interface Props {
   /** Path to the local vault (footer info, e.g. ~/akaion-brain) */
   vaultPath?: string;
-  /** Called when the user picks local-only ("Apri il mio Brain") */
+  /** Called when the user picks local-only ("Open my vault") */
   onSkip: () => void;
   /** Called after a successful Google login */
   onLogin: (status: AuthStatus) => void;
@@ -52,7 +52,7 @@ export default function WelcomeView({ vaultPath = "~/akaion-brain", onSkip, onLo
     } catch (e: any) {
       // Silently swallow user-driven cancellations
       if (e?.code !== "auth/popup-closed-by-user" && e?.code !== "auth/cancelled-popup-request") {
-        setError(e?.message ?? "Login Google fallito");
+        setError(e?.message ?? "Google sign-in failed");
       }
     } finally {
       setLoading(false);
@@ -74,27 +74,27 @@ export default function WelcomeView({ vaultPath = "~/akaion-brain", onSkip, onLo
           className="ak-btn-primary"
           onClick={handleSkip}
           disabled={loading}
-          aria-label="Apri il mio Brain — modalità locale"
+          aria-label="Open my vault — local mode"
         >
           <span aria-hidden="true">✦</span>
-          Apri il mio Brain
+          Open my vault
         </button>
 
-        <div className="ak-or-divider">oppure</div>
+        <div className="ak-or-divider">or</div>
 
         <SocialButton
           provider="google"
           variant="full"
           isLoading={loading}
           onClick={handleGoogle}
-          label="Sincronizza con Akaion Cloud"
+          label="Sync with Akaion Cloud"
         />
 
         {error && <div className="ak-auth-error">{error}</div>}
 
         <p className="ak-welcome-footer">
-          Vault locale: <code>{vaultPath}</code><br />
-          Le tue note restano sul tuo Mac. Il login al cloud è opzionale.
+          Local vault: <code>{vaultPath}</code><br />
+          Your notes stay on this machine. Cloud sign-in is optional.
         </p>
       </div>
     </div>

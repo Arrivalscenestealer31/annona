@@ -1,0 +1,66 @@
+; Architectural contracts, enforced in CI.
+;
+; These are not style rules. They are the mechanically checkable half of the
+; claims made in docs/design/sovereign-runtime.md: if the agent loop cannot
+; import a provider SDK, then "the loop is provider-agnostic" is a fact rather
+; than an intention.
+;
+; Run with:  make contracts     (or: lint-imports)
+
+[importlinter]
+root_packages =
+    runner
+include_external_packages = True
+
+; ─────────────────────────────────────────────────────────────────────────────
+; L0 is the innermost layer: ports and types, no dependencies on the rest.
+; ─────────────────────────────────────────────────────────────────────────────
+[importlinter:contract:kernel-is-innermost]
+name = L0 kernel does not depend on outer layers
+type = layers
+layers =
+    runner.capability
+    runner.kernel
+
+[importlinter:contract:agent-above-kernel]
+name = L3 agent depends only inward on L0
+type = layers
+layers =
+    runner.agent
+    runner.kernel
+
+; ─────────────────────────────────────────────────────────────────────────────
+; The loop talks to ports, never to adapters. This is what lets Phase 1 slot a
+; perimeter between them without touching either side.
+; ─────────────────────────────────────────────────────────────────────────────
+[importlinter:contract:agent-and-capability-are-independent]
+name = L3 agent and L1 capability do not know about each other
+type = independence
+modules =
+    runner.agent
+    runner.capability
+
+; ─────────────────────────────────────────────────────────────────────────────
+; Provider isolation. Only L1 adapters may touch a vendor SDK.
+; ─────────────────────────────────────────────────────────────────────────────
+[importlinter:contract:kernel-has-no-vendors]
+name = L0 kernel imports no provider SDK
+type = forbidden
+source_modules =
+    runner.kernel
+forbidden_modules =
+    anthropic
+    openai
+    google
+    httpx
+
+[importlinter:contract:agent-has-no-vendors]
+name = L3 agent loop imports no provider SDK
+type = forbidden
+source_modules =
+    runner.agent
+forbidden_modules =
+    anthropic
+    openai
+    google
+    httpx

@@ -27,7 +27,7 @@ def test_runner_execute():
     auth = AuthManager()
     
     if not auth.is_authenticated():
-        logger.error("Runner non autenticato. Esegui 'akaion login' prima.")
+        logger.error("Runner is not signed in. Run 'akaion login' first.")
         return
     
     # Create AI client con timeout maggiore per task complessi
@@ -40,19 +40,19 @@ def test_runner_execute():
     
     # Test command - Task reale di editing documento Word
     test_path = "/home/pf-5k0epy/Desktop/test"
-    command = f"""Trova e lavora sui file Word (.docx) nella directory {test_path}:
+    command = f"""Find and work on the Word (.docx) files in {test_path}:
 
-1. Cerca tutti i file .docx presenti nella directory
-2. Per ogni file .docx trovato:
+1. Find every .docx file in the directory
+2. For each one:
    - Usa 'pandoc' o 'docx2txt' per estrarre il testo (se non disponibili, usa 'unzip' e 'grep' per estrarre da document.xml)
    - Leggi e analizza il contenuto
    - Identifica eventuali problemi o miglioramenti necessari
    - Crea un file di output con il contenuto migliorato/formattato
    - Genera un summary del documento in formato Markdown
 3. Se non trovi file .docx, lavora sui file .txt presenti
-4. Salva i risultati nella stessa directory
+4. Save the results in the same directory
 
-Esegui tutte le operazioni necessarie."""
+Do whatever is needed to complete this."""
     
     logger.info(f"🎯 Task: Work on Word documents (.docx)")
     logger.info(f"📂 Working directory: {test_path}")

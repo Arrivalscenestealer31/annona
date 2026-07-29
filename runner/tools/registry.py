@@ -1,30 +1,32 @@
 """
 Tool Registry
 
-Registry di tutti i tools disponibili per il runner.
+Registry of the tools available to the runner.
 """
-from typing import Dict, Any, List, Callable
+
+from typing import Any, Dict, List
+
 from loguru import logger
 
 from .base import Tool
-from .filesystem import FilesystemTool
-from .shell import ShellTool
 from .browser import BrowserTool
 from .document_reader import DocumentReaderTool
 from .explorer import ExplorerTool
+from .filesystem import FilesystemTool
+from .shell import ShellTool
 
 
 class ToolRegistry:
     """Registry di tools"""
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.tools: Dict[str, Tool] = {}
-        
+
         # Registra i tools abilitati
         enabled_tools = config.get("tools", {}).get("enabled", [])
         self._register_builtin_tools(enabled_tools)
-    
+
     def _register_builtin_tools(self, enabled: List[str]):
         """Registra i tools built-in"""
         if "filesystem" in enabled:
@@ -41,31 +43,27 @@ class ToolRegistry:
 
         if "explorer" in enabled:
             self.register(ExplorerTool(self.config))
-    
+
     def register(self, tool: Tool):
-        """Registra un nuovo tool"""
+        """Register a tool."""
         self.tools[tool.name] = tool
         logger.debug(f"Registered tool: {tool.name}")
-    
+
     def get_tool(self, name: str) -> Tool:
-        """Recupera un tool per nome"""
+        """Look a tool up by name."""
         if name not in self.tools:
             raise ValueError(f"Tool not found: {name}")
         return self.tools[name]
-    
+
     def list_tools(self) -> List[str]:
-        """Lista tutti i tools disponibili"""
+        """List every available tool."""
         return list(self.tools.keys())
-    
+
     def get_tool_schema(self, name: str) -> Dict[str, Any]:
-        """Recupera lo schema di un tool per l'AI"""
+        """The schema advertised to the model for one tool."""
         tool = self.get_tool(name)
-        return {
-            "name": tool.name,
-            "description": tool.description,
-            "parameters": tool.parameters
-        }
-    
+        return {"name": tool.name, "description": tool.description, "parameters": tool.parameters}
+
     def get_all_schemas(self) -> List[Dict[str, Any]]:
-        """Recupera gli schemi di tutti i tools"""
+        """The schemas advertised to the model for every tool."""
         return [self.get_tool_schema(name) for name in self.tools.keys()]

@@ -5,25 +5,24 @@ Covers: TXT, CSV, JSON, Markdown, XLSX (with openpyxl),
         DOCX (with python-docx), PDF (with pdfplumber),
         missing files, oversized files, truncation, unknown extensions.
 """
-import csv
+
 import json
+from unittest.mock import MagicMock, patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
-from runner.tools.document_reader import DocumentReaderTool, get_file_format, is_readable, SUPPORTED_FORMATS
-
+from runner.tools.document_reader import DocumentReaderTool, get_file_format, is_readable
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def make_tool(config=None):
-    cfg = config or {
-        "permissions": {"filesystem": {"max_file_size_mb": 50}}
-    }
+    cfg = config or {"permissions": {"filesystem": {"max_file_size_mb": 50}}}
     return DocumentReaderTool(cfg)
 
 
 # ── Plain text / code formats ─────────────────────────────────────────────────
+
 
 class TestTextFormats:
     def test_read_txt(self, tmp_path):
@@ -98,6 +97,7 @@ class TestTextFormats:
 
 # ── CSV ───────────────────────────────────────────────────────────────────────
 
+
 class TestCSV:
     def test_basic_csv(self, tmp_path):
         f = tmp_path / "data.csv"
@@ -125,11 +125,13 @@ class TestCSV:
 
 # ── Excel (openpyxl) ──────────────────────────────────────────────────────────
 
+
 class TestExcel:
     @pytest.fixture
     def xlsx_file(self, tmp_path):
         pytest.importorskip("openpyxl")
         import openpyxl
+
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Sales"
@@ -166,11 +168,13 @@ class TestExcel:
 
 # ── DOCX (python-docx) ────────────────────────────────────────────────────────
 
+
 class TestDocx:
     @pytest.fixture
     def docx_file(self, tmp_path):
         pytest.importorskip("docx")
         from docx import Document
+
         doc = Document()
         doc.add_heading("Annual Report 2024", level=1)
         doc.add_paragraph("Executive Summary")
@@ -205,6 +209,7 @@ class TestDocx:
 
 # ── PDF (pdfplumber) ──────────────────────────────────────────────────────────
 
+
 class TestPDF:
     @pytest.fixture
     def pdf_file(self, tmp_path):
@@ -212,6 +217,7 @@ class TestPDF:
         otherwise mocks pdfplumber."""
         try:
             from fpdf import FPDF
+
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Helvetica", size=12)
@@ -299,6 +305,7 @@ class TestPDF:
 
 # ── Error cases ───────────────────────────────────────────────────────────────
 
+
 class TestErrorCases:
     def test_file_not_found(self):
         result = make_tool().execute("/nonexistent/path/file.txt")
@@ -328,6 +335,7 @@ class TestErrorCases:
 
 
 # ── Utility functions ─────────────────────────────────────────────────────────
+
 
 class TestUtilities:
     def test_get_file_format_pdf(self):

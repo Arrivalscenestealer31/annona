@@ -1,14 +1,14 @@
 """
 Document Reader Tool
 
-Legge e converte in testo file di vari formati:
+Reads files of many formats and converts them to text:
 PDF, DOCX, XLSX/XLS, CSV, TXT, MD, JSON, YAML
 """
+
 import csv
-import json
-import io
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, Optional
+
 from loguru import logger
 
 from .base import Tool
@@ -43,30 +43,26 @@ class DocumentReaderTool(Tool):
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Absolute or ~ path to the file to read"
+                        "description": "Absolute or ~ path to the file to read",
                     },
                     "max_chars": {
                         "type": "integer",
-                        "description": "Max characters to return (default: 100000). Use 0 for no limit."
+                        "description": "Max characters to return (default: 100000). Use 0 for no limit.",
                     },
                     "sheet_name": {
                         "type": "string",
-                        "description": "For Excel files: sheet name to read (default: first sheet)"
-                    }
+                        "description": "For Excel files: sheet name to read (default: first sheet)",
+                    },
                 },
-                "required": ["path"]
-            }
+                "required": ["path"],
+            },
         )
         self.config = config
         cfg_perms = config.get("permissions", {}).get("filesystem", {})
         self.max_size_mb = cfg_perms.get("max_file_size_mb", MAX_FILE_SIZE_MB)
 
     def execute(
-        self,
-        path: str,
-        max_chars: int = 100_000,
-        sheet_name: Optional[str] = None,
-        **kwargs
+        self, path: str, max_chars: int = 100_000, sheet_name: Optional[str] = None, **kwargs
     ) -> Dict[str, Any]:
         target = Path(path).expanduser().resolve()
 
@@ -77,7 +73,10 @@ class DocumentReaderTool(Tool):
 
         size_mb = target.stat().st_size / (1024 * 1024)
         if size_mb > self.max_size_mb:
-            return {"success": False, "error": f"File too large: {size_mb:.1f} MB (limit {self.max_size_mb} MB)"}
+            return {
+                "success": False,
+                "error": f"File too large: {size_mb:.1f} MB (limit {self.max_size_mb} MB)",
+            }
 
         suffix = target.suffix.lower()
         logger.info(f"Reading document: {target} ({suffix}, {size_mb:.2f} MB)")
@@ -120,13 +119,14 @@ class DocumentReaderTool(Tool):
     def _read_pdf(self, path: Path):
         try:
             import pdfplumber
+
             pages_text = []
             metadata = {}
             with pdfplumber.open(str(path)) as pdf:
                 metadata = {
                     "format": "pdf",
                     "pages": len(pdf.pages),
-                    "info": dict(pdf.metadata) if pdf.metadata else {}
+                    "info": dict(pdf.metadata) if pdf.metadata else {},
                 }
                 for i, page in enumerate(pdf.pages, 1):
                     t = page.extract_text() or ""
@@ -137,22 +137,21 @@ class DocumentReaderTool(Tool):
             # Fallback to pypdf
             try:
                 from pypdf import PdfReader
+
                 reader = PdfReader(str(path))
                 pages_text = []
                 for i, page in enumerate(reader.pages, 1):
                     t = page.extract_text() or ""
                     if t.strip():
                         pages_text.append(f"--- Page {i} ---\n{t}")
-                return "\n\n".join(pages_text), {
-                    "format": "pdf",
-                    "pages": len(reader.pages)
-                }
+                return "\n\n".join(pages_text), {"format": "pdf", "pages": len(reader.pages)}
             except ImportError:
                 raise ImportError("Install pdfplumber or pypdf: pip install pdfplumber")
 
     def _read_word(self, path: Path):
         try:
             from docx import Document
+
             doc = Document(str(path))
             paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
             # Also read tables
@@ -169,7 +168,7 @@ class DocumentReaderTool(Tool):
             return text, {
                 "format": "docx",
                 "paragraphs": len(paragraphs),
-                "tables": len(doc.tables)
+                "tables": len(doc.tables),
             }
         except ImportError:
             raise ImportError("Install python-docx: pip install python-docx")
@@ -177,6 +176,7 @@ class DocumentReaderTool(Tool):
     def _read_excel(self, path: Path, sheet_name: Optional[str] = None):
         try:
             import openpyxl
+
             wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
             sheets = wb.sheetnames
 
@@ -199,7 +199,7 @@ class DocumentReaderTool(Tool):
             return "\n\n".join(all_text), {
                 "format": "xlsx",
                 "sheets": sheets,
-                "sheets_read": target_sheets
+                "sheets_read": target_sheets,
             }
         except ImportError:
             raise ImportError("Install openpyxl: pip install openpyxl")
@@ -210,10 +210,7 @@ class DocumentReaderTool(Tool):
             reader = csv.reader(f)
             for row in reader:
                 rows.append(" | ".join(row))
-        return "\n".join(rows), {
-            "format": "csv",
-            "rows": len(rows)
-        }
+        return "\n".join(rows), {"format": "csv", "rows": len(rows)}
 
     def _read_text(self, path: Path):
         with open(path, "r", encoding="utf-8", errors="replace") as f:

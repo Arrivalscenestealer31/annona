@@ -25,7 +25,7 @@ export default function TasksView() {
             <span className={`status-dot ${status}`} />
             <span style={{ textTransform: "capitalize" }}>{status}</span>
             {status === "running" && (
-              <span className="text-sub" style={{ fontSize: 11 }}>· polling attivo · API su localhost:7070</span>
+              <span className="text-sub" style={{ fontSize: 11 }}>· polling · API on localhost:7070</span>
             )}
           </div>
         </div>

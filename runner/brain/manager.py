@@ -1,7 +1,7 @@
 """
 Brain Manager
 
-Gestisce la persistenza locale delle note:
+Local persistence for notes:
 - SQLite per metadata e indice full-text
 - File markdown in <brain_dir>/notes/<id>.md
 
@@ -11,15 +11,17 @@ Struttura su disco:
   └── .akaion/
       └── index.db    ← SQLite
 """
-import sqlite3
+
 import json
+import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+
 from loguru import logger
 
-from .models import Note, SyncStats, new_id, SYNC_LOCAL_ONLY, SYNC_PENDING, SYNC_SYNCED, SYNC_ERROR
-
+from . import frontmatter
+from .models import SYNC_ERROR, SYNC_LOCAL_ONLY, SYNC_PENDING, SYNC_SYNCED, Note, SyncStats, new_id
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS notes (
@@ -36,7 +38,7 @@ CREATE TABLE IF NOT EXISTS notes (
     sync_error       TEXT
 );
 
--- Nota: tabella FTS5 NON contentless: con `content=''` SQLite restituisce
+-- Note: the FTS5 table is NOT contentless. With `content=''` SQLite returns
 -- NULL per le colonne (incluso `id UNINDEXED`), rendendo impossibili sia
 -- JOIN su notes.id sia DELETE by id. Manteniamo il contenuto in-fts.
 CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
@@ -56,12 +58,12 @@ def _parse_dt(s: Optional[str]) -> Optional[datetime]:
 
 
 class BrainManager:
-    """CRUD locale per note + indice SQLite."""
+    """Local note CRUD backed by a SQLite index."""
 
     def __init__(self, brain_dir: Path):
         self.brain_dir = Path(brain_dir).expanduser()
         self.notes_dir = self.brain_dir / "notes"
-        self.db_path   = self.brain_dir / ".akaion" / "index.db"
+        self.db_path = self.brain_dir / ".akaion" / "index.db"
 
         self.notes_dir.mkdir(parents=True, exist_ok=True)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,6 +71,7 @@ class BrainManager:
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._migrate()
+        self._backfill_frontmatter()
         logger.info(f"BrainManager ready: {self.brain_dir}")
 
     def _migrate(self):
@@ -81,11 +84,83 @@ class BrainManager:
         return self.notes_dir / f"{note_id}.md"
 
     def _write_md(self, note_id: str, content: str):
-        self._note_path(note_id).write_text(content, encoding="utf-8")
+        """Write the body, preserving whatever frontmatter the note carries.
+
+        Metadata is written by :meth:`_write_frontmatter`, which knows the note's
+        fields. Here we only ever touch the body, so a hand-edited `project:` key
+        survives a content update.
+        """
+        path = self._note_path(note_id)
+        existing = path.read_text(encoding="utf-8") if path.exists() else ""
+        metadata, _ = frontmatter.parse(existing)
+        path.write_text(frontmatter.dump(metadata, content), encoding="utf-8")
 
     def _read_md(self, note_id: str) -> str:
+        """Read the body, without frontmatter.
+
+        `Note.content` has always meant "the prose", and every caller and test
+        depends on that. Frontmatter is metadata, and metadata belongs in the
+        note's fields, not in the middle of its text.
+        """
         p = self._note_path(note_id)
-        return p.read_text(encoding="utf-8") if p.exists() else ""
+        if not p.exists():
+            return ""
+        _, body = frontmatter.parse(p.read_text(encoding="utf-8"))
+        return body
+
+    def _write_frontmatter(self, note_id: str) -> None:
+        """Refresh a note's frontmatter from the index.
+
+        Called after any change to title, tags or sync state, so the file on disk
+        is always self-describing: delete the index and the vault still knows what
+        each note is.
+        """
+        row = self._conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
+        if not row:
+            return
+
+        path = self._note_path(note_id)
+        existing = path.read_text(encoding="utf-8") if path.exists() else ""
+        custom, body = frontmatter.parse(existing)
+
+        # Runner-owned fields win; anything a human added is carried through.
+        metadata = {k: v for k, v in custom.items() if k not in frontmatter.FIELD_ORDER}
+        metadata.update(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "tags": json.loads(row["tags"]),
+                "created": row["created_at"],
+                "updated": row["updated_at"],
+                "sync": row["sync_status"],
+                "synced_at": row["synced_at"],
+                "cloud_message_id": row["cot_message_id"],
+                "cloud_cluster_id": row["cot_cluster_id"],
+                "cloud_cluster_name": row["cot_cluster_name"],
+            }
+        )
+        path.write_text(frontmatter.dump(metadata, body), encoding="utf-8")
+
+    def _backfill_frontmatter(self) -> int:
+        """Add frontmatter to notes written before the vault carried metadata.
+
+        Idempotent and cheap: it only rewrites files that lack a frontmatter
+        block, so opening an already-migrated vault costs one read per note.
+        Returns how many notes were migrated, for the log line.
+        """
+        migrated = 0
+        for row in self._conn.execute("SELECT id FROM notes").fetchall():
+            path = self._note_path(row["id"])
+            if not path.exists():
+                continue
+            if frontmatter.has_frontmatter(path.read_text(encoding="utf-8")):
+                continue
+            self._write_frontmatter(row["id"])
+            migrated += 1
+
+        if migrated:
+            logger.info(f"Vault migrated: frontmatter written to {migrated} note(s)")
+        return migrated
 
     def _delete_md(self, note_id: str):
         p = self._note_path(note_id)
@@ -134,6 +209,7 @@ class BrainManager:
             (note.id, note.title, content),
         )
         self._conn.commit()
+        self._write_frontmatter(note.id)
         logger.debug(f"Note created: {note.id} [{note.title}]")
         return note
 
@@ -169,10 +245,10 @@ class BrainManager:
 
     def find_note_by_tag(self, tag: str) -> Optional[Note]:
         """
-        Trova la PRIMA nota che contiene il tag esatto.
+        Finds the FIRST note carrying the exact tag.
 
-        Usata per check di idempotency (es. evitare di creare 2 note per lo
-        stesso task_id). Il match è esatto sul valore JSON in tags column.
+        Used for idempotency checks, e.g. avoiding two notes for the same
+        task_id. The match is exact against the JSON value in the tags column.
         """
         row = self._conn.execute(
             "SELECT * FROM notes WHERE tags LIKE ? ORDER BY created_at ASC LIMIT 1",
@@ -229,6 +305,7 @@ class BrainManager:
             list(updates.values()) + [note_id],
         )
         self._conn.commit()
+        self._write_frontmatter(note_id)
         return self.get(note_id)
 
     def delete(self, note_id: str) -> bool:
@@ -241,24 +318,40 @@ class BrainManager:
     # ── Sync status helpers ───────────────────────────────────────────────────
 
     def mark_pending(self, note_id: str) -> bool:
-        """Marca la nota per la sync al prossimo push."""
+        """Mark the note to be sent on the next push."""
         cur = self._conn.execute(
             "UPDATE notes SET sync_status = ?, updated_at = ? WHERE id = ? AND sync_status != ?",
             (SYNC_PENDING, _now(), note_id, SYNC_PENDING),
         )
         self._conn.commit()
+        self._write_frontmatter(note_id)
         return cur.rowcount > 0
 
-    def mark_synced(self, note_id: str, cot_message_id: str, cot_cluster_id: Optional[str] = None, cot_cluster_name: Optional[str] = None):
-        """Aggiorna la nota dopo una sync riuscita."""
+    def mark_synced(
+        self,
+        note_id: str,
+        cot_message_id: str,
+        cot_cluster_id: Optional[str] = None,
+        cot_cluster_name: Optional[str] = None,
+    ):
+        """Update the note after a successful sync."""
         self._conn.execute(
             """UPDATE notes SET
                sync_status = ?, cot_message_id = ?, cot_cluster_id = ?,
                cot_cluster_name = ?, synced_at = ?, sync_error = NULL, updated_at = ?
                WHERE id = ?""",
-            (SYNC_SYNCED, cot_message_id, cot_cluster_id, cot_cluster_name, _now(), _now(), note_id),
+            (
+                SYNC_SYNCED,
+                cot_message_id,
+                cot_cluster_id,
+                cot_cluster_name,
+                _now(),
+                _now(),
+                note_id,
+            ),
         )
         self._conn.commit()
+        self._write_frontmatter(note_id)
 
     def mark_sync_error(self, note_id: str, error: str):
         self._conn.execute(
@@ -266,14 +359,19 @@ class BrainManager:
             (SYNC_ERROR, error[:500], _now(), note_id),
         )
         self._conn.commit()
+        self._write_frontmatter(note_id)
 
     def update_cluster_info(self, cot_message_id: str, cot_cluster_id: str, cot_cluster_name: str):
-        """Aggiorna cluster info dopo un pull da COT."""
+        """Update cluster info after a pull from the cloud."""
         self._conn.execute(
             "UPDATE notes SET cot_cluster_id = ?, cot_cluster_name = ? WHERE cot_message_id = ?",
             (cot_cluster_id, cot_cluster_name, cot_message_id),
         )
         self._conn.commit()
+        for row in self._conn.execute(
+            "SELECT id FROM notes WHERE cot_message_id = ?", (cot_message_id,)
+        ).fetchall():
+            self._write_frontmatter(row["id"])
 
     # ── Stats ─────────────────────────────────────────────────────────────────
 

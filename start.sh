@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Akaion Runner - Startup Script
-# Usa sempre l'interprete del venv direttamente per evitare conflitti con alias shell
+# Always call the venv interpreter directly, to avoid shell alias conflicts
 
 set -e
 
@@ -14,7 +14,7 @@ PYTHON="$ROOT/env/bin/python3"
 RUNNER_ENV="${RUNNER_ENV:-prod}"
 ENV_FILE="$ROOT/.env.$RUNNER_ENV"
 if [ -f "$ENV_FILE" ]; then
-    # set -a: ogni var assegnata viene esportata; set +a la disattiva dopo.
+    # set -a exports every assigned variable; set +a turns that off again.
     set -a
     # shellcheck disable=SC1090
     . "$ENV_FILE"
@@ -56,7 +56,7 @@ if [ ! -f "$PYTHON" ]; then
 fi
 
 # First-time init: create local config + vault structure (NO cloud login).
-# Cloud sync is opt-in via `akaion login` or the UI "Sincronizza" button.
+# Cloud sync is opt-in via `akaion login` or the sync action in the UI.
 AKAION_CONFIG_DIR="${AKAION_HOME:-$HOME/.akaion}"
 if [ ! -d "$AKAION_CONFIG_DIR" ]; then
     echo "First-time setup: initializing local config in $AKAION_CONFIG_DIR ..."

@@ -6,18 +6,19 @@ Covers:
 - GET / serves index.html when ui/dist exists.
 - App startup does not error when ui/dist is missing.
 """
+
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from runner.brain.manager import BrainManager
-from runner.sync.engine import SyncEngine
-from runner.auth import AuthManager
 from runner import local_api as local_api_module
+from runner.auth import AuthManager
+from runner.brain.manager import BrainManager
 from runner.local_api import create_app
-
+from runner.sync.engine import SyncEngine
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _build_app(tmp_path: Path, ui_dist: Path | None):
     """
@@ -44,6 +45,7 @@ def _build_app(tmp_path: Path, ui_dist: Path | None):
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
+
 
 def test_app_startup_without_ui_dist(tmp_path):
     """If ui/dist doesn't exist, app must still start and serve /api/*."""

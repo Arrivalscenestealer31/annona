@@ -12,17 +12,18 @@ Strategy:
 This keeps tests fast and hermetic while still exercising the production
 `capture_task_as_note` helper.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict
+import contextlib
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
-from runner.brain.capture import capture_task_as_note, MAX_CONTENT_BYTES
+from runner.brain.capture import MAX_CONTENT_BYTES, capture_task_as_note
 from runner.brain.manager import BrainManager
 from runner.brain.models import SYNC_LOCAL_ONLY
-
 
 # ── Daemon stub ───────────────────────────────────────────────────────────────
 
@@ -40,15 +41,14 @@ class _DaemonStub:
         self.executor = executor
         self.cloud_client = MagicMock()
 
-    def _capture_task_to_brain(self, task: Dict[str, Any], result: Any) -> None:
+    def _capture_task_to_brain(self, task: dict[str, Any], result: Any) -> None:
         if not self.capture_to_brain:
             return
-        try:
+        # Mirrors the daemon: capturing a note must never fail a task.
+        with contextlib.suppress(Exception):
             capture_task_as_note(self.brain, task, result)
-        except Exception:  # noqa: BLE001
-            pass
 
-    def execute_task(self, task: Dict[str, Any]) -> Any:
+    def execute_task(self, task: dict[str, Any]) -> Any:
         try:
             result = self.executor.execute(task)
             self._capture_task_to_brain(task, result)
@@ -80,7 +80,7 @@ def fake_executor():
     return ex
 
 
-def _sample_tool_task() -> Dict[str, Any]:
+def _sample_tool_task() -> dict[str, Any]:
     return {
         "id": "task-abc12345-1111-2222-3333-444455556666",
         "type": "tool",
@@ -102,14 +102,14 @@ def test_capture_creates_local_only_note_with_correct_tags(brain, fake_executor)
     note = notes[0]
 
     assert note.sync_status == SYNC_LOCAL_ONLY
-    # Tags richiesti dalla spec
+    # Tags required by the spec
     assert "runner" in note.tags
     assert f"task:{task['id']}" in note.tags  # full uuid, no truncate
     assert "type:tool" in note.tags
     assert "tool:filesystem" in note.tags
     assert "error" not in note.tags
 
-    # Title: nessun task.title fornito → fallback "Task {type}: {id[:8]}"
+    # Title: no task.title given, so it falls back to "Task {type}: {id[:8]}"
     assert note.title.startswith("Task tool:")
     assert "task-abc" in note.title
 
@@ -139,7 +139,7 @@ def test_same_task_id_does_not_create_duplicate_note(brain, fake_executor):
     task = _sample_tool_task()
 
     daemon.execute_task(task)
-    daemon.execute_task(task)  # retry simulato
+    daemon.execute_task(task)  # simulated retry
 
     notes = brain.list()
     assert len(notes) == 1
@@ -157,26 +157,26 @@ def test_different_task_ids_create_different_notes(brain, fake_executor):
     assert len(brain.list()) == 2
 
 
-# ── Test 4 — Truncation oltre 100 KB ──────────────────────────────────────────
+# ── Test 4 — truncation past 100 KB ─────────────────────────────────────────
 
 
 def test_huge_output_is_truncated_with_marker(brain):
-    # Output > 100 KB: stringa di 200 KB
+    # Output larger than 100 KB: a 200 KB string
     huge_string = "x" * (200 * 1024)
     ex = MagicMock()
-    ex.execute.return_value = huge_string  # ritorno stringa diretta (markdown)
+    ex.execute.return_value = huge_string  # a bare string result (markdown)
 
     daemon = _DaemonStub(brain, capture=True, executor=ex)
     daemon.execute_task(_sample_tool_task())
 
     note = brain.list()[0]
     encoded = note.content.encode("utf-8")
-    # Trunc soglia + nota in coda → max ~ MAX_CONTENT_BYTES + len(marker)
+    # Truncation threshold plus the trailing marker
     assert len(encoded) <= MAX_CONTENT_BYTES + 200
     assert "[Output truncated" in note.content
 
 
-# ── Test 5 — Task fallito → tag `error` + prefix ──────────────────────────────
+# ── Test 5 — a failed task gets the `error` tag and prefix ───────────────────
 
 
 def test_failed_task_is_captured_with_error_tag_and_prefix(brain):
@@ -198,12 +198,12 @@ def test_failed_task_is_captured_with_error_tag_and_prefix(brain):
     assert f"task:{task['id']}" in note.tags
     # Prefix
     assert note.content.lstrip().startswith("> **Task failed**")
-    # Errore embeddato nell'output
+    # Error embedded in the output
     assert "boom" in note.content
 
 
 def test_failed_result_dict_also_tagged_error(brain):
-    """Anche un result {success: False} (non eccezione) deve essere taggato."""
+    """A {success: False} result must be tagged too, not just an exception."""
     ex = MagicMock()
     ex.execute.return_value = {"success": False, "error": "validation failed"}
 
@@ -215,7 +215,7 @@ def test_failed_result_dict_also_tagged_error(brain):
     assert note.content.lstrip().startswith("> **Task failed**")
 
 
-# ── Extra — title da task.title se presente ───────────────────────────────────
+# ── Extra — the title comes from task.title when present ────────────────────
 
 
 def test_explicit_task_title_is_used(brain, fake_executor):

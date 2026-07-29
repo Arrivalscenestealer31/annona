@@ -1,40 +1,75 @@
-"""
-AI Client
+"""AI client facade — the composition root for agentic runs.
 
-Client AI multi-provider con supporto per:
-- Akaion AI Backend
-- OpenAI
-- Anthropic (Claude)
-- Google (Gemini)
-- Local (Ollama)
+This module is where provider clients are *constructed*: credentials, the
+environment and the `_init_*` seams live here. It then hands the constructed
+client to an L1 adapter and delegates the run to the single loop in
+:mod:`runner.agent.loop`.
+
+Before Phase 0 this file also *contained* the loop — three times over, one copy
+per provider, of which only two supported tool use. Those copies are gone; the
+behaviour they implemented is preserved in one place. See
+``docs/adr/0002-unify-the-agentic-loop.md``.
+
+Layer note: this is the outermost layer, so it is the one place allowed to know
+about every other. It wires ports to adapters and does nothing else — no control
+flow, no provider protocol details.
+
+Supported providers:
+
+===============  ===============================  ===============
+``provider``     Path                             Tool use
+===============  ===============================  ===============
+``akaion``       control-plane proxy (L1)         yes
+``anthropic``    Messages API (L1)                yes
+``echo``         scripted, offline (L1)           yes
+``openai``       chat completion fallback         no (Phase 2)
+``google``       chat completion fallback         no (Phase 2)
+``local``        chat completion fallback         no (Phase 2)
+===============  ===============================  ===============
+
+``openai`` and ``google`` still reach a model without being able to call tools.
+``local`` no longer does: it runs a real model on the machine, with tools.
 """
-from typing import Dict, Any, List, Optional, Union
-from loguru import logger
+
 import os
+from typing import Any, Dict, List, Optional
+
+from loguru import logger
+
+from runner.agent.loop import AgentLoop
+from runner.capability.backends import (
+    AkaionBackend,
+    AnthropicBackend,
+    EchoBackend,
+    OllamaBackend,
+)
+from runner.capability.backends.echo import script_from_config
+from runner.capability.tooling import PermissionGate, RegistryToolExecutor
+from runner.kernel.ports import InferenceBackend
 
 from .cloud_client import AIBackendClient
 
 
 class AIClient:
     """Client AI che supporta multiple providers"""
-    
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.ai_config = config.get("ai", {})
-        
+
         self.provider = self.ai_config.get("provider", "akaion")
         self.model = self.ai_config.get("model", "gpt-4")
         self.temperature = self.ai_config.get("temperature", 0.7)
         self.max_tokens = self.ai_config.get("max_tokens", 4000)
-        
+
         # Client typed as Any to avoid complex union types
         self.client: Any = None
-        
-        # Inizializza il provider
+
+        # Set up the provider
         self._init_provider()
-    
+
     def _init_provider(self):
-        """Inizializza il provider AI"""
+        """Construct the provider client."""
         if self.provider == "akaion":
             self._init_akaion()
         elif self.provider == "openai":
@@ -45,14 +80,27 @@ class AIClient:
             self._init_google()
         elif self.provider == "local":
             self._init_local()
+        elif self.provider == "echo":
+            self._init_echo()
         else:
             raise ValueError(f"Unknown AI provider: {self.provider}")
-    
+
+    def _init_echo(self):
+        """Initialise the offline scripted provider.
+
+        There is nothing to construct: no client, no credentials, no network. See
+        :mod:`runner.capability.backends.echo` for why this ships in the product
+        rather than only in the tests.
+        """
+        self.client = None
+        logger.info("Using offline echo backend (no network, no credentials)")
+
     def _init_akaion(self):
-        """Inizializza Akaion AI. Local-first: senza credenziali resta inattivo
+        """Akaion control plane. Local-first: with no credentials it stays inactive
         (client=None) ma la classe è costruibile — il check duro avviene solo
-        quando si tenta una completion."""
+        only when a completion is actually attempted."""
         from .auth import AuthManager
+
         auth = AuthManager()
 
         api_key = auth.get_api_key()
@@ -61,77 +109,76 @@ class AIClient:
             self.client = None
             return
 
-        self.client = AIBackendClient(
-            api_key=api_key,
-            runner_id=auth.get_runner_id()
-        )
+        self.client = AIBackendClient(api_key=api_key, runner_id=auth.get_runner_id())
         logger.info("Using Akaion AI Backend")
-    
+
     def _init_openai(self):
-        """Inizializza OpenAI"""
+        """Construct the OpenAI client."""
         from openai import OpenAI
-        
+
         api_key = self.ai_config.get("openai", {}).get("api_key") or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OpenAI API key not configured")
-        
+
         self.client = OpenAI(api_key=api_key)
         logger.info("Using OpenAI")
-    
+
     def _init_anthropic(self):
-        """Inizializza Anthropic"""
+        """Construct the Anthropic client."""
         from anthropic import Anthropic
-        
-        api_key = self.ai_config.get("anthropic", {}).get("api_key") or os.getenv("ANTHROPIC_API_KEY")
+
+        api_key = self.ai_config.get("anthropic", {}).get("api_key") or os.getenv(
+            "ANTHROPIC_API_KEY"
+        )
         if not api_key:
             raise ValueError("Anthropic API key not configured")
-        
+
         self.client = Anthropic(api_key=api_key)
         logger.info("Using Anthropic Claude")
-    
+
     def _init_google(self):
-        """Inizializza Google"""
+        """Construct the Google client."""
         try:
             import google.generativeai as genai
-            
+
             api_key = self.ai_config.get("google", {}).get("api_key") or os.getenv("GOOGLE_API_KEY")
             if not api_key:
                 raise ValueError("Google API key not configured")
-            
+
             genai.configure(api_key=api_key)  # type: ignore
             self.client = genai
             logger.info("Using Google Gemini")
         except ImportError:
             raise ValueError("google-generativeai package not installed")
-    
+
     def _init_local(self):
-        """Inizializza Local (Ollama)"""
+        """Construct the local Ollama client."""
         import httpx
-        
+
         endpoint = self.ai_config.get("local", {}).get("endpoint", "http://localhost:11434")
         self.client = httpx.Client(base_url=endpoint)
         logger.info(f"Using Local LLM at {endpoint}")
-    
+
     def chat_completion(
         self,
         messages: List[Dict[str, str]],
         temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
     ) -> str:
         """
-        Esegue una chat completion
-        
+        Run a chat completion
+
         Args:
             messages: Lista di messaggi [{role: "user/assistant/system", content: "..."}]
             temperature: Override temperature
             max_tokens: Override max_tokens
-            
+
         Returns:
-            Risposta del modello
+            The model's reply
         """
         temp = temperature if temperature is not None else self.temperature
         max_tok = max_tokens if max_tokens is not None else self.max_tokens
-        
+
         if self.provider == "akaion":
             return self._chat_akaion(messages, temp, max_tok)
         elif self.provider == "openai":
@@ -144,101 +191,93 @@ class AIClient:
             return self._chat_local(messages, temp, max_tok)
         else:
             return ""
-    
+
     def _chat_akaion(self, messages: List[Dict[str, str]], temp: float, max_tok: int) -> str:
         """Chat con Akaion AI"""
         result = self.client.chat_completion(  # type: ignore
-            messages=messages,
-            model=self.model,
-            temperature=temp
+            messages=messages, model=self.model, temperature=temp
         )
         return result.get("message", {}).get("content", "") if result else ""
-    
+
     def _chat_openai(self, messages: List[Dict[str, str]], temp: float, max_tok: int) -> str:
         """Chat con OpenAI"""
         response = self.client.chat.completions.create(  # type: ignore
             model=self.model,
             messages=messages,  # type: ignore
             temperature=temp,
-            max_tokens=max_tok
+            max_tokens=max_tok,
         )
         return response.choices[0].message.content or ""
-    
+
     def _chat_anthropic(self, messages: List[Dict[str, str]], temp: float, max_tok: int) -> str:
         """Chat con Anthropic"""
-        # Anthropic richiede system message separato
+        # Anthropic takes the system message separately
         system_msg = next((m["content"] for m in messages if m["role"] == "system"), None)
         user_messages = [m for m in messages if m["role"] != "system"]
-        
+
         response = self.client.messages.create(  # type: ignore
             model=self.model,
             system=system_msg or "",
             messages=user_messages,  # type: ignore
             temperature=temp,
-            max_tokens=max_tok
+            max_tokens=max_tok,
         )
         # Handle different content block types
         if response.content and len(response.content) > 0:
             block = response.content[0]
-            if hasattr(block, 'text'):
+            if hasattr(block, "text"):
                 return block.text  # type: ignore
         return ""
-    
+
     def _chat_google(self, messages: List[Dict[str, str]], temp: float, max_tok: int) -> str:
         """Chat con Google"""
         model = self.client.GenerativeModel(self.model)  # type: ignore
-        
+
         # Converti messages in formato Google
         chat = model.start_chat(history=[])  # type: ignore
-        for msg in messages[:-1]:  # Tutti tranne l'ultimo
+        for msg in messages[:-1]:  # everything but the last
             chat.send_message(msg["content"])  # type: ignore
-        
+
         # Invia ultimo messaggio
         response = chat.send_message(messages[-1]["content"])  # type: ignore
         return response.text or ""  # type: ignore
-    
+
     def _chat_local(self, messages: List[Dict[str, str]], temp: float, max_tok: int) -> str:
-        """Chat con Ollama locale"""
+        """Chat through a local Ollama endpoint."""
         response = self.client.post(  # type: ignore
             "/api/chat",
-            json={
-                "model": self.model,
-                "messages": messages,
-                "temperature": temp,
-                "stream": False
-            }
+            json={"model": self.model, "messages": messages, "temperature": temp, "stream": False},
         )
         return response.json().get("message", {}).get("content", "")
-    
+
     def execute_command(self, command: str, tools) -> Any:
         """
-        Esegue un comando usando l'AI
-        
+        Run a command through the model
+
         Args:
-            command: Comando da eseguire
+            command: The command to run
             tools: ToolRegistry disponibili
-            
+
         Returns:
-            Risultato dell'esecuzione
+            The execution result
         """
         # Se il provider è Akaion, usa l'endpoint specifico per runner
         if self.provider == "akaion":
             return self._execute_command_akaion(command, tools)
-        
+
         # Altrimenti usa il metodo generico con chat completion
         return self._execute_command_generic(command, tools)
-    
+
     def _execute_command_akaion(self, command: str, tools) -> Any:
-        """Esegue un comando via Akaion AI Backend (endpoint runner)"""
+        """Run a command through the Akaion backend's runner endpoint."""
         try:
             import os
             import subprocess
-            from pathlib import Path
-            
+
             # Prepara il contesto per il runner
             working_dir = os.getcwd()
             available_tools = tools.list_tools() if tools else []
-            
+
             # Chiama l'endpoint specifico per runner
             result = self.client.runner_execute(  # type: ignore
                 command=command,
@@ -247,13 +286,13 @@ class AIClient:
                 permissions=self.config.get("permissions", {}),
                 environment=dict(os.environ),
                 temperature=self.temperature,
-                max_tokens=self.max_tokens
+                max_tokens=self.max_tokens,
             )
-            
+
             if result and result.get("success"):
                 response_text = result.get("response", "")
                 actions = result.get("actions", [])
-                
+
                 # Execute shell commands from actions
                 command_results = []
                 for action in actions:
@@ -268,40 +307,38 @@ class AIClient:
                                     capture_output=True,
                                     text=True,
                                     timeout=30,
-                                    cwd=working_dir
+                                    cwd=working_dir,
                                 )
-                                
+
                                 command_output = proc_result.stdout.strip()
                                 if proc_result.returncode == 0:
-                                    logger.success(f"Command executed successfully: {command_output}")
-                                    command_results.append({
-                                        "command": cmd,
-                                        "output": command_output,
-                                        "success": True
-                                    })
+                                    logger.success(
+                                        f"Command executed successfully: {command_output}"
+                                    )
+                                    command_results.append(
+                                        {"command": cmd, "output": command_output, "success": True}
+                                    )
                                 else:
                                     error_output = proc_result.stderr.strip()
                                     logger.error(f"Command failed: {error_output}")
-                                    command_results.append({
-                                        "command": cmd,
-                                        "output": error_output,
-                                        "success": False
-                                    })
+                                    command_results.append(
+                                        {"command": cmd, "output": error_output, "success": False}
+                                    )
                             except subprocess.TimeoutExpired:
                                 logger.error(f"Command timed out: {cmd}")
-                                command_results.append({
-                                    "command": cmd,
-                                    "output": "Command timed out after 30 seconds",
-                                    "success": False
-                                })
+                                command_results.append(
+                                    {
+                                        "command": cmd,
+                                        "output": "Command timed out after 30 seconds",
+                                        "success": False,
+                                    }
+                                )
                             except Exception as e:
                                 logger.error(f"Error executing command: {e}")
-                                command_results.append({
-                                    "command": cmd,
-                                    "output": str(e),
-                                    "success": False
-                                })
-                
+                                command_results.append(
+                                    {"command": cmd, "output": str(e), "success": False}
+                                )
+
                 # Build final response with command results
                 final_response = response_text
                 if command_results:
@@ -313,7 +350,7 @@ class AIClient:
                         else:
                             final_response += f"\n❌ `{cmd_result['command']}`\n"
                             final_response += f"Error: {cmd_result['output']}\n"
-                
+
                 return {
                     "response": final_response,
                     "actions": actions,
@@ -321,22 +358,24 @@ class AIClient:
                     "reasoning": result.get("reasoning"),
                 }
             else:
-                error_msg = result.get("error", "Unknown error") if result else "No response from AI"
+                error_msg = (
+                    result.get("error", "Unknown error") if result else "No response from AI"
+                )
                 logger.error(f"AI command execution failed: {error_msg}")
                 return {
                     "response": f"Error: {error_msg}",
                     "actions": [],
                 }
-        
+
         except Exception as e:
             logger.error(f"Error executing command via Akaion: {e}")
             return {
                 "response": f"Execution error: {str(e)}",
                 "actions": [],
             }
-    
+
     def _execute_command_generic(self, command: str, tools) -> Any:
-        """Esegue un comando via provider generico (OpenAI, Anthropic, etc)"""
+        """Run a command through a provider with no dedicated path."""
         # Costruisci il prompt per l'AI
         system_prompt = """You are a helpful AI assistant that can execute commands using available tools.
         
@@ -347,290 +386,78 @@ When given a command, analyze it and use the appropriate tools to execute it.
 Return the result in a structured format.""".format(
             tools="\n".join([f"- {t}" for t in tools.list_tools()]) if tools else "None"
         )
-        
+
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Execute this command: {command}"}
+            {"role": "user", "content": f"Execute this command: {command}"},
         ]
-        
+
         response = self.chat_completion(messages)
-        
+
         # TODO: Parse response e chiamata tools per provider non-Akaion
         return {"response": response, "actions": []}
-    
-    def reason_and_execute(
-        self,
-        prompt: str,
-        context: Dict[str, Any],
-        tools,
-        permissions,
-        max_iterations: int = 10
-    ) -> Any:
-        """
-        Agentic loop: ragiona sul task ed esegue tools iterativamente.
 
-        - Per provider 'akaion':    usa il backend /runner/agent/turn (LLM cloud, tool exec locale)
-        - Per provider 'anthropic': usa il native tool-use di Claude direttamente
-        - Per altri provider:       fallback a chat completion senza tool use
+    def build_backend(self) -> Optional[InferenceBackend]:
+        """Wrap the constructed provider client in an L1 inference adapter.
+
+        Returns ``None`` for providers that have no adapter yet, which routes the
+        run to the tool-less chat fallback — the behaviour those providers have
+        always had.
+
+        Built per run rather than cached at construction: the runner id is
+        assigned during cloud registration, which can complete after this object
+        exists.
         """
         if self.provider == "akaion":
-            return self._agentic_loop_akaion(prompt, context, tools, permissions, max_iterations)
-        elif self.provider == "anthropic":
-            return self._agentic_loop_anthropic(prompt, context, tools, permissions, max_iterations)
-        else:
-            return self._agentic_loop_generic(prompt, context, tools)
+            return AkaionBackend(client=self.client)
 
-    def _agentic_loop_akaion(
-        self,
-        prompt: str,
-        context: Dict[str, Any],
-        tools,
-        permissions,
-        max_iterations: int,
-    ) -> Any:
-        """
-        Agentic loop che usa il backend Akaion come LLM proxy.
+        if self.provider == "anthropic":
+            return AnthropicBackend(client=self.client, model=self.model)
 
-        Il runner mantiene lo stato (messages array).
-        Ad ogni iterazione:
-          1. Invia messages + tool schemas → POST /api/v1/runner/agent/turn
-          2. Backend chiama Claude con tool use nativo
-          3. Se stop_reason == "tool_use": esegui i tool localmente, aggiungi risultati, ripeti
-          4. Se stop_reason == "end_turn": restituisci la risposta finale
-        """
-        import json
-
-        # Build tool schemas for the backend (Anthropic format)
-        tool_schemas: List[Dict[str, Any]] = []
-        if tools:
-            for schema in tools.get_all_schemas():
-                tool_schemas.append({
-                    "name": schema["name"],
-                    "description": schema["description"],
-                    "input_schema": schema["parameters"],
-                })
-
-        # System prompt with context
-        system_prompt = (
-            "You are an advanced local agent running on the user's machine. "
-            "You have access to tools to explore the filesystem, read documents of any format "
-            "(PDF, DOCX, XLSX, CSV, code files), execute shell commands, and analyze content. "
-            "When given a task, think step by step and use the appropriate tools. "
-            "Be thorough: explore before reading, read before summarizing. "
-            f"Context: {json.dumps(context) if context else 'none'}"
-        )
-
-        # Initial user message
-        messages: List[Dict[str, Any]] = [
-            {
-                "role": "user",
-                "content": [{"type": "text", "text": prompt}],
-            }
-        ]
-
-        runner_id = self.client.runner_id or "unknown"  # type: ignore
-        tool_call_log: List[Dict[str, Any]] = []
-        final_response = ""
-
-        for iteration in range(max_iterations):
-            logger.info(f"Akaion agent turn {iteration + 1}/{max_iterations}")
-
-            turn_result = self.client.runner_agent_turn(  # type: ignore
-                runner_id=runner_id,
-                messages=messages,
-                tools=tool_schemas,
-                system_prompt=system_prompt,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+        if self.provider == "local":
+            local = self.ai_config.get("local", {})
+            return OllamaBackend(
+                model=self.model,
+                endpoint=local.get("endpoint", "http://localhost:11434"),
             )
 
-            if not turn_result:
-                logger.error("runner_agent_turn returned None — aborting loop")
-                break
+        if self.provider == "echo":
+            return EchoBackend(
+                script=script_from_config(self.ai_config.get("echo", {}).get("script"))
+            )
 
-            stop_reason = turn_result.get("stop_reason", "end_turn")
-            content_blocks = turn_result.get("content", [])
+        return None
 
-            # Collect text and tool_use blocks
-            tool_use_blocks = []
-            for block in content_blocks:
-                if block.get("type") == "text":
-                    final_response = block.get("text", "")
-                elif block.get("type") == "tool_use":
-                    tool_use_blocks.append(block)
-
-            if stop_reason == "end_turn" or not tool_use_blocks:
-                break
-
-            # Execute tool calls locally
-            tool_results = []
-            for tu in tool_use_blocks:
-                tool_name = tu.get("name")
-                tool_input = tu.get("input") or {}
-                tu_id = tu.get("id")
-
-                logger.info(f"Executing tool: {tool_name} {tool_input}")
-
-                if permissions and not permissions.check_tool_permission(tool_name, tool_input):
-                    result_content = {"error": f"Permission denied for tool: {tool_name}"}
-                    is_error = True
-                else:
-                    try:
-                        tool_obj = tools.get_tool(tool_name)
-                        result_content = tool_obj.execute(**tool_input)
-                        is_error = False
-                    except Exception as e:
-                        result_content = {"error": str(e)}
-                        is_error = True
-
-                tool_call_log.append({
-                    "tool": tool_name,
-                    "input": tool_input,
-                    "result": result_content,
-                    "error": is_error,
-                })
-
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": tu_id,
-                    "content": json.dumps(result_content),
-                    "is_error": is_error,
-                })
-
-            # Append assistant turn (with tool_use blocks) + user turn (with tool results)
-            messages.append({"role": "assistant", "content": content_blocks})
-            messages.append({"role": "user", "content": tool_results})
-
-        return {
-            "response": final_response,
-            "iterations": iteration + 1,
-            "tool_calls": tool_call_log,
-        }
-
-    def _agentic_loop_anthropic(
-        self,
-        prompt: str,
-        context: Dict[str, Any],
-        tools,
-        permissions,
-        max_iterations: int
+    def reason_and_execute(
+        self, prompt: str, context: Dict[str, Any], tools, permissions, max_iterations: int = 10
     ) -> Any:
-        """
-        Agentic loop con Anthropic tool use nativo.
-        Ciclo: send → ricevi tool_use → esegui → send results → ripeti.
-        """
-        import json
+        """Run an agentic task: reason, call tools, repeat until done.
 
-        # Build tool schemas for Claude
-        tool_schemas = tools.get_all_schemas() if tools else []
-        anthropic_tools = [
-            {
-                "name": t["name"],
-                "description": t["description"],
-                "input_schema": t["parameters"]
-            }
-            for t in tool_schemas
-        ]
+        Delegates to the single loop in :mod:`runner.agent.loop`. This method
+        only wires ports to adapters — the loop decides what happens next, and
+        the L1 adapter knows how to talk to the provider.
 
-        system_prompt = (
-            "You are an advanced local agent running on the user's machine. "
-            "You have access to tools to explore the filesystem, read documents of any format "
-            "(PDF, DOCX, XLSX, CSV, code files), execute shell commands, and analyze content. "
-            "When given a task, think step by step and use the appropriate tools. "
-            "Be thorough: explore before reading, read before summarizing. "
-            f"Context: {json.dumps(context) if context else 'none'}"
+        Returns:
+            ``{"response": str, "iterations": int, "tool_calls": [...]}`` — the
+            same shape this method has always returned.
+        """
+        backend = self.build_backend()
+
+        if backend is None:
+            # openai / google / local: reach a model, cannot call tools.
+            return self._agentic_loop_generic(prompt, context, tools)
+
+        loop = AgentLoop(
+            backend,
+            RegistryToolExecutor(tools),
+            PermissionGate(permissions),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
+        return loop.run(prompt, context, max_iterations).to_dict()
 
-        messages = [{"role": "user", "content": prompt}]
-        tool_call_log = []
-        final_response = ""
-
-        for iteration in range(max_iterations):
-            logger.info(f"Agent iteration {iteration + 1}/{max_iterations}")
-
-            kwargs: Dict[str, Any] = {
-                "model": self.model,
-                "system": system_prompt,
-                "messages": messages,
-                "max_tokens": self.max_tokens,
-                "temperature": self.temperature,
-            }
-            if anthropic_tools:
-                kwargs["tools"] = anthropic_tools
-
-            response = self.client.messages.create(**kwargs)  # type: ignore
-
-            # Check stop reason
-            stop_reason = response.stop_reason
-
-            # Collect text and tool use blocks
-            tool_use_blocks = []
-            text_parts = []
-            for block in response.content:
-                if block.type == "text":
-                    text_parts.append(block.text)
-                elif block.type == "tool_use":
-                    tool_use_blocks.append(block)
-
-            if text_parts:
-                final_response = " ".join(text_parts)
-
-            if stop_reason == "end_turn" or not tool_use_blocks:
-                # Done
-                break
-
-            # Execute tool calls
-            tool_results = []
-            for tu in tool_use_blocks:
-                tool_name = tu.name
-                tool_input = tu.input if hasattr(tu, "input") else {}
-
-                logger.info(f"Calling tool: {tool_name} with {tool_input}")
-
-                # Permission check
-                if permissions and not permissions.check_tool_permission(tool_name, tool_input):
-                    result_content = {"error": f"Permission denied for tool: {tool_name}"}
-                    is_error = True
-                else:
-                    try:
-                        tool_obj = tools.get_tool(tool_name)
-                        result_content = tool_obj.execute(**tool_input)
-                        is_error = False
-                    except Exception as e:
-                        result_content = {"error": str(e)}
-                        is_error = True
-
-                tool_call_log.append({
-                    "tool": tool_name,
-                    "input": tool_input,
-                    "result": result_content,
-                    "error": is_error,
-                })
-
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": tu.id,
-                    "content": json.dumps(result_content),
-                    "is_error": is_error,
-                })
-
-            # Append assistant turn + tool results
-            messages.append({"role": "assistant", "content": response.content})
-            messages.append({"role": "user", "content": tool_results})
-
-        return {
-            "response": final_response,
-            "iterations": iteration + 1,
-            "tool_calls": tool_call_log,
-        }
-
-    def _agentic_loop_generic(
-        self,
-        prompt: str,
-        context: Dict[str, Any],
-        tools
-    ) -> Any:
-        """Fallback per provider senza tool use nativo"""
+    def _agentic_loop_generic(self, prompt: str, context: Dict[str, Any], tools) -> Any:
+        """Fallback for providers with no tool-use adapter yet."""
         system_prompt = (
             f"You are an advanced AI agent.\n"
             f"Available tools: {', '.join(tools.list_tools()) if tools else 'none'}\n"

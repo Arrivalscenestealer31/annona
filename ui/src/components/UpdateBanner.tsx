@@ -18,7 +18,7 @@ export default function UpdateBanner() {
   if (available) {
     label = `Akaion Runner ${available.version} disponibile`;
   } else if (errored) {
-    label = "Aggiornamento non riuscito";
+    label = "Update failed";
   }
 
   return (
@@ -98,7 +98,7 @@ export default function UpdateBanner() {
                 cursor: "pointer",
               }}
             >
-              Dopo
+              Later
             </button>
           </>
         )}
@@ -115,7 +115,7 @@ export default function UpdateBanner() {
               cursor: "pointer",
             }}
           >
-            Chiudi
+            Close
           </button>
         )}
       </div>

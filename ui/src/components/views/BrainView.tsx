@@ -47,10 +47,10 @@ const STATUS_DOT_CLASS: Record<string, string> = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  local_only:   "locale",
+  local_only:   "local",
   pending_sync: "pending",
   synced:       "synced",
-  sync_error:   "errore",
+  sync_error:   "error",
 }
 
 // Legacy sync-pill kept for editor toolbar
@@ -73,7 +73,7 @@ function NoteCard({ note, selected, onSelect }: {
       className={`ak-note-card ${selected ? "selected" : ""}`}
       onClick={() => onSelect(note.id)}
     >
-      <div className="ak-note-card__title">{note.title || "Senza titolo"}</div>
+      <div className="ak-note-card__title">{note.title || "Untitled"}</div>
       <div className="ak-note-card__preview">
         {preview || <span style={{ color: "rgba(255,255,255,0.30)" }}>Nessun contenuto…</span>}
       </div>
@@ -153,7 +153,7 @@ function NoteEditor({ note, onSave, onMarkSync, onDelete }: {
           className="ak-editor-title"
           value={title}
           onChange={(e) => handleTitle(e.target.value)}
-          placeholder="Titolo nota..."
+          placeholder="Note title..."
         />
         <div className="flex gap-2 items-center" style={{ flexShrink: 0 }}>
           {dirty && <span className="text-sub" style={{ fontSize: 11 }}>Saving…</span>}
@@ -164,7 +164,7 @@ function NoteEditor({ note, onSave, onMarkSync, onDelete }: {
           ) : (
             <SyncPill status={note.sync_status} />
           )}
-          <button className="btn sm" onClick={() => onDelete(note.id)} title="Elimina nota"
+          <button className="btn sm" onClick={() => onDelete(note.id)} title="Delete note"
             style={{ color: "var(--red)", borderColor: "rgba(248,81,73,0.3)" }}>
             <TrashIcon size={12} />
           </button>
@@ -254,7 +254,7 @@ export default function BrainView() {
 
   const handleCreate = async () => {
     try {
-      const note = await brain.create({ title: "Nuova nota", content: "", tags: [] })
+      const note = await brain.create({ title: "New note", content: "", tags: [] })
       setNotes((prev) => [note, ...prev])
       setSelected(note.id)
     } catch { /* runner down */ }
@@ -313,22 +313,22 @@ export default function BrainView() {
         <div>
           <div className="ak-view-title">Brain</div>
           <div className="ak-view-sub">
-            {counts.all} {counts.all === 1 ? "nota" : "note"} · {counts.synced} sincronizzate
+            {counts.all} {counts.all === 1 ? "note" : "notes"} · {counts.synced} synced
           </div>
         </div>
-        <button className="ak-pill-cta" onClick={handleCreate} aria-label="Nuova nota">
-          <PlusIcon size={14} /> Nuova nota
+        <button className="ak-pill-cta" onClick={handleCreate} aria-label="New note">
+          <PlusIcon size={14} /> New note
         </button>
       </div>
 
       {/* Filter tabs */}
       {!runnerDown && !loading && (
         <div className="ak-filter-tabs" role="tablist">
-          <FilterTab id="all"          active={filter} onClick={setFilter} label="Tutte"        count={counts.all} />
+          <FilterTab id="all"          active={filter} onClick={setFilter} label="All"        count={counts.all} />
           <FilterTab id="local_only"   active={filter} onClick={setFilter} label="Locali"       count={counts.local_only}   dot="local"   />
           <FilterTab id="pending_sync" active={filter} onClick={setFilter} label="Pending"      count={counts.pending_sync} dot="pending" />
           <FilterTab id="synced"       active={filter} onClick={setFilter} label="Sincronizzate" count={counts.synced}      dot="synced"  />
-          <FilterTab id="sync_error"   active={filter} onClick={setFilter} label="Errori"       count={counts.sync_error}   dot="error"   />
+          <FilterTab id="sync_error"   active={filter} onClick={setFilter} label="Errors"       count={counts.sync_error}   dot="error"   />
         </div>
       )}
 
@@ -336,7 +336,7 @@ export default function BrainView() {
         <div className="view-body">
           <div className="card">
             <p className="text-muted">Runner non raggiungibile su <code>localhost:7070</code>.</p>
-            <p className="text-sub" style={{ marginTop: 4, fontSize: 12 }}>Avvia il runner dalla barra di stato.</p>
+            <p className="text-sub" style={{ marginTop: 4, fontSize: 12 }}>Start the runner from the bar di stato.</p>
           </div>
         </div>
       ) : loading ? (
@@ -357,7 +357,7 @@ export default function BrainView() {
             {filtered.length === 0 ? (
               <div className="ak-empty" style={{ padding: "32px 16px" }}>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-                  {search.trim() ? "Nessun risultato" : "Nessuna nota in questa vista"}
+                  {search.trim() ? "No results" : "No notes in this view"}
                 </div>
               </div>
             ) : (
@@ -378,18 +378,18 @@ export default function BrainView() {
               <div className="ak-empty">
                 <span className="ak-empty__icon"><BrainIcon size={64} /></span>
                 <h2 className="ak-empty__title">
-                  {counts.all === 0 ? "Inizia a scrivere" : "Nessuna nota selezionata"}
+                  {counts.all === 0 ? "Start writing" : "No note selected"}
                 </h2>
                 <p className="ak-empty__subtitle">
                   {counts.all === 0
-                    ? "Crea la tua prima nota: vivrà nel vault locale sul tuo Mac."
-                    : "Scegli una nota dalla lista a sinistra o creane una nuova."}
+                    ? "Create your first note — it lives in the local vault on this machine."
+                    : "Pick a note from the list, or create a new one."}
                 </p>
                 <button className="ak-pill-cta" onClick={handleCreate} style={{ marginTop: 4 }}>
-                  <PlusIcon size={14} /> Nuova nota
+                  <PlusIcon size={14} /> New note
                 </button>
                 <div className="ak-empty__hint">
-                  <kbd>⌘N</kbd> nuova nota &nbsp;·&nbsp; <kbd>⌘K</kbd> cerca <span style={{ opacity: 0.6 }}>(soon)</span>
+                  <kbd>⌘N</kbd> new note &nbsp;·&nbsp; <kbd>⌘K</kbd> search <span style={{ opacity: 0.6 }}>(soon)</span>
                 </div>
               </div>
             )}

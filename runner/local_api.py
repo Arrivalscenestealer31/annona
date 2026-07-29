@@ -21,10 +21,11 @@ Endpoints:
   POST /api/sync/push/{id}
   GET  /            → ui/dist/index.html (se la UI è stata buildata)
 """
+
 import threading
-from typing import List, Optional, Any, Dict
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
@@ -33,11 +34,10 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel
 
-from .brain.manager import BrainManager
 from .auth import AuthManager
-from .brain.models import Note, SyncStats
+from .brain.manager import BrainManager
+from .brain.models import Note
 from .sync.engine import SyncEngine
-
 
 # UI dist path: <runner-root>/ui/dist
 _UI_DIST = Path(__file__).resolve().parent.parent / "ui" / "dist"
@@ -45,15 +45,18 @@ _UI_DIST = Path(__file__).resolve().parent.parent / "ui" / "dist"
 
 # ── Pydantic I/O models ───────────────────────────────────────────────────────
 
+
 class NoteCreate(BaseModel):
     title: str
     content: str = ""
     tags: List[str] = []
 
+
 class NoteUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     tags: Optional[List[str]] = None
+
 
 class NoteOut(BaseModel):
     id: str
@@ -73,6 +76,7 @@ class NoteOut(BaseModel):
     def from_note(cls, n: Note) -> "NoteOut":
         return cls(**n.__dict__)
 
+
 class SyncStatusOut(BaseModel):
     pending: int
     synced: int
@@ -82,6 +86,7 @@ class SyncStatusOut(BaseModel):
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
+
 
 def create_app(
     brain: BrainManager,
@@ -117,7 +122,7 @@ def create_app(
 
     @app.get("/api/auth/status")
     def auth_status():
-        """Controlla se il runner è autenticato. Sempre 200 — mai bloccante."""
+        """Whether the runner is signed in. Always 200 — never blocks the UI."""
         authenticated = _auth.is_authenticated()
         return {
             "authenticated": authenticated,
@@ -132,7 +137,7 @@ def create_app(
     def runner_mode():
         """
         Modalità attuale del runner (la UI la usa per decidere cosa mostrare
-        in sidebar: badge "Locale" vs "Sincronizzato").
+        in the sidebar: a "Local" versus "Synced" badge).
         """
         authenticated = _auth.is_authenticated()
         return {
@@ -151,8 +156,8 @@ def create_app(
     @app.post("/api/auth/save")
     def auth_save(body: AuthSaveRequest):
         """
-        Salva le credenziali Firebase ricevute dal login in-app.
-        Chiamato dalla UI Tauri dopo il login con Firebase JS SDK.
+        Store the Firebase credentials produced by the in-app sign-in.
+        Called by the Tauri UI after signing in with the Firebase JS SDK.
         """
         try:
             _auth.save_credentials(
@@ -171,7 +176,7 @@ def create_app(
 
     @app.post("/api/auth/logout")
     def auth_logout():
-        """Rimuove le credenziali locali."""
+        """Remove the stored credentials."""
         _auth.clear_credentials()
         return {"authenticated": False}
 
@@ -218,7 +223,7 @@ def create_app(
 
     @app.post("/api/brain/notes/{note_id}/mark-sync", response_model=NoteOut)
     def mark_note_for_sync(note_id: str):
-        """Marca la nota come pending_sync — verrà inviata al prossimo push."""
+        """Mark the note pending_sync so the next push sends it."""
         if not brain.mark_pending(note_id):
             raise HTTPException(404, "Note not found or already pending")
         note = brain.get(note_id)
@@ -244,12 +249,12 @@ def create_app(
 
     @app.post("/api/sync/push")
     def sync_push():
-        """Push tutte le note pending verso COT cloud."""
+        """Push every pending note to the cloud."""
         return sync.push_pending()
 
     @app.post("/api/sync/push/{note_id}")
     def sync_push_one(note_id: str):
-        """Push di una singola nota (forzato, indipendentemente dallo stato)."""
+        """Push a single note, regardless of its current state."""
         ok = sync.push_note(note_id)
         if not ok:
             raise HTTPException(400, "Sync failed — controlla i log")
@@ -280,8 +285,9 @@ def _mount_ui(app: FastAPI) -> None:
 
 # ── Runner del server in thread separato ─────────────────────────────────────
 
+
 class LocalAPIServer:
-    """Avvia FastAPI in un daemon thread accanto al polling loop."""
+    """Run FastAPI in a daemon thread alongside the polling loop."""
 
     def __init__(
         self,
@@ -291,13 +297,13 @@ class LocalAPIServer:
         port: int = 7070,
         cloud_enabled: bool = False,
     ):
-        self.brain         = brain
-        self.sync          = sync
-        self.auth          = auth
-        self.port          = port
+        self.brain = brain
+        self.sync = sync
+        self.auth = auth
+        self.port = port
         self.cloud_enabled = cloud_enabled
         self._thread: Optional[threading.Thread] = None
-        self._server: Optional[uvicorn.Server]   = None
+        self._server: Optional[uvicorn.Server] = None
 
     def start(self):
         app = create_app(self.brain, self.sync, self.auth, cloud_enabled=self.cloud_enabled)
@@ -305,7 +311,7 @@ class LocalAPIServer:
             app,
             host="127.0.0.1",
             port=self.port,
-            log_level="warning",   # silenzia i log HTTP nel terminale del runner
+            log_level="warning",  # silenzia i log HTTP nel terminale del runner
             access_log=False,
         )
         self._server = uvicorn.Server(config)
@@ -317,7 +323,9 @@ class LocalAPIServer:
         )
         self._thread.start()
         # Piccola attesa per lasciar partire uvicorn
-        import time; time.sleep(0.5)
+        import time
+
+        time.sleep(0.5)
         logger.info(f"Local API ready on http://127.0.0.1:{self.port}")
 
     def stop(self):

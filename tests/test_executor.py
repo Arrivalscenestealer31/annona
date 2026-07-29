@@ -2,14 +2,15 @@
 Tests for TaskExecutor — all task types including 'explore'.
 AI client is mocked in all tests.
 """
-import pytest
+
 from unittest.mock import MagicMock, patch
-from pathlib import Path
+
+import pytest
 
 from runner.executor import TaskExecutor
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def executor(minimal_config):
@@ -24,11 +25,10 @@ def executor(minimal_config):
 
 # ── command task ──────────────────────────────────────────────────────────────
 
+
 class TestCommandTask:
     def test_command_calls_ai_execute_command(self, executor):
-        executor._mock_ai.execute_command.return_value = {
-            "response": "Done", "actions": []
-        }
+        executor._mock_ai.execute_command.return_value = {"response": "Done", "actions": []}
         task = {"type": "command", "payload": {"command": "list files"}}
         result = executor.execute(task)
         assert result["type"] == "command_result"
@@ -41,6 +41,7 @@ class TestCommandTask:
 
 
 # ── tool task ─────────────────────────────────────────────────────────────────
+
 
 class TestToolTask:
     def test_direct_tool_call_filesystem_list(self, executor, tmp_path):
@@ -92,6 +93,7 @@ class TestToolTask:
 
 # ── ai_task ───────────────────────────────────────────────────────────────────
 
+
 class TestAITask:
     def test_ai_task_calls_reason_and_execute(self, executor):
         executor._mock_ai.reason_and_execute.return_value = {
@@ -118,6 +120,7 @@ class TestAITask:
 
 # ── explore task ──────────────────────────────────────────────────────────────
 
+
 class TestExploreTask:
     def test_explore_injects_path_into_prompt(self, executor, sample_dir):
         executor._mock_ai.reason_and_execute.return_value = {
@@ -139,9 +142,7 @@ class TestExploreTask:
         assert call_kwargs["context"]["working_path"] == str(sample_dir)
 
     def test_explore_works_without_path(self, executor):
-        executor._mock_ai.reason_and_execute.return_value = {
-            "response": "Done.", "tool_calls": []
-        }
+        executor._mock_ai.reason_and_execute.return_value = {"response": "Done.", "tool_calls": []}
         task = {
             "type": "explore",
             "payload": {"prompt": "What is the current directory?"},
@@ -170,6 +171,7 @@ class TestExploreTask:
 
 
 # ── workflow task ─────────────────────────────────────────────────────────────
+
 
 class TestWorkflowTask:
     def test_workflow_executes_steps_in_order(self, executor, tmp_path):

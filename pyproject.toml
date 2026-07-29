@@ -1,0 +1,226 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "akaion-runner"
+version = "0.1.0"
+description = "Dogana — the perimeter for AI agents. Runs agent plans inside your infrastructure and records what left it."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Akaion", email = "dev@akaion.com" }]
+keywords = ["dogana", "ai", "agents", "local-first", "sovereignty", "privacy", "llm", "egress"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+  # CLI + TUI
+  "typer>=0.12.3",
+  "rich>=13.7.1",
+  "click>=8.1.7",
+  "textual>=0.80.0",
+  "inquirer>=3.2.4",
+  # Config + validation
+  "pydantic>=2.7.1",
+  "pydantic-settings>=2.2.1",
+  "python-dotenv>=1.0.1",
+  "PyYAML>=6.0.1",
+  # Agent vocabulary and provider adapters (see docs/adr/0001)
+  "datapizza-ai-core>=0.1.3,<0.2",
+  # HTTP
+  "httpx>=0.27.0",
+  "aiohttp>=3.9.5",
+  "websockets>=12.0",
+  # Local API server
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.6",
+  # Documents
+  "pdfplumber>=0.11.0",
+  "pypdf>=4.0.0",
+  "python-docx>=1.1.0",
+  "openpyxl>=3.1.0",
+  # System
+  "watchdog>=4.0.0",
+  "psutil>=5.9.8",
+  # Auth
+  "PyJWT>=2.8.0",
+  "cryptography>=42.0.7",
+  # Logging
+  "loguru>=0.7.2",
+]
+
+[project.optional-dependencies]
+# Remote inference providers. None is required: the runner works offline with
+# the `echo` backend, and Phase 2 adds local runtimes.
+anthropic = ["anthropic>=0.25.7"]
+openai = ["openai>=1.30.1"]
+google = ["google-generativeai>=0.5.4"]
+providers = ["anthropic>=0.25.7", "openai>=1.30.1", "google-generativeai>=0.5.4"]
+
+dev = [
+  "pytest>=8.2.0",
+  "pytest-asyncio>=0.23.6",
+  "pytest-cov>=5.0.0",
+  "ruff>=0.6.0",
+  "mypy>=1.11.0",
+  "import-linter>=2.0",
+  "pre-commit>=3.7.0",
+  "types-PyYAML",
+]
+
+docs = [
+  "mkdocs>=1.6.0",
+  "mkdocs-material>=9.5.0",
+]
+
+[project.scripts]
+# The project is named Dogana; `akaion` stays for existing muscle memory.
+# Both point at the same app — see docs/adr/0004.
+dogana = "runner.cli:app"
+akaion = "runner.cli:app"
+
+[project.urls]
+Homepage = "https://akaion.com"
+Repository = "https://github.com/Akaion-repos/akaion-app-runner"
+Documentation = "https://github.com/Akaion-repos/akaion-app-runner/tree/main/docs"
+
+[tool.setuptools.packages.find]
+include = ["runner*"]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests
+#
+# Historical note: this configuration lived in `pytest.ini` under a
+# `[tool:pytest]` header, which is the setup.cfg spelling. pytest silently
+# ignored the whole file, so `addopts` never applied and coverage never ran.
+# Keeping it here means there is exactly one place for it.
+# ──────────────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-q --strict-markers --strict-config"
+filterwarnings = [
+  "error::pytest.PytestUnraisableExceptionWarning",
+  "default::DeprecationWarning",
+]
+markers = [
+  "unit: pure unit tests, no I/O",
+  "integration: touches the real filesystem or spawns a subprocess",
+  "e2e: drives the runner end to end through a real agentic loop (offline)",
+]
+
+[tool.coverage.run]
+source = ["runner"]
+branch = true
+omit = ["runner/tui.py", "runner/banner.py"]
+
+[tool.coverage.report]
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "\\.\\.\\.",
+]
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Lint / format
+# ──────────────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["env", "build", "ui", "runner.spec"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RET", "TID"]
+ignore = [
+  "E501",   # line length is handled by the formatter
+  "B008",   # typer/fastapi idiom: function calls in argument defaults
+  "SIM108", # ternaries are not always clearer
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Legacy modules predate this configuration. They are linted for real errors
+# (E, F) but not yet for modernisation rules; each is cleaned as it is touched.
+# New code under runner/kernel, runner/capability and runner/agent has no
+# exemptions — see docs/adr/0002.
+"runner/tui.py" = ["UP", "SIM", "RET", "B"]
+"runner/banner.py" = ["UP", "SIM", "RET", "B"]
+"runner/cli.py" = ["UP", "SIM", "RET", "B"]
+"runner/local_api.py" = ["UP", "SIM", "RET", "B"]
+"runner/brain/*.py" = ["UP", "SIM", "RET", "B"]
+"runner/tools/*.py" = ["UP", "SIM", "RET", "B"]
+"runner/sync/*.py" = ["UP", "SIM", "RET", "B"]
+"runner/permissions/*.py" = ["UP", "SIM", "RET", "B"]
+"runner/auth.py" = ["UP", "SIM", "RET", "B"]
+"runner/config.py" = ["UP", "SIM", "RET", "B"]
+"runner/executor.py" = ["UP", "SIM", "RET", "B"]
+"runner/main.py" = ["UP", "SIM", "RET", "B"]
+"runner/cloud_client.py" = ["UP", "SIM", "RET", "B"]
+"runner/service_urls.py" = ["UP", "SIM", "RET", "B"]
+"runner/ai_client.py" = ["UP", "SIM", "RET", "B"]
+"tests/*.py" = ["B011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["runner"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Types
+#
+# Incremental adoption: the new layers are checked strictly, legacy modules are
+# checked loosely and tightened as they are rewritten.
+# ──────────────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.10"
+files = ["runner"]
+exclude = ["^env/", "^build/", "^ui/"]
+warn_unused_configs = true
+ignore_missing_imports = true
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+module = ["runner.kernel.*", "runner.capability.*", "runner.agent.*"]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+
+# ── Typing debt ledger ────────────────────────────────────────────────────────
+#
+# These modules predate type checking and currently report 20 errors between
+# them. They are listed individually, rather than excluded by a wildcard, so the
+# debt is countable and shrinks by deletion: type a module, remove its line.
+#
+# Two of these are real defects rather than annotation gaps, and are tracked in
+# docs/reference/typing-debt.md rather than fixed here — Phase 0 is a refactor
+# with no behaviour change, and both fixes alter behaviour:
+#   * runner/local_api.py:225,257 — a missing note is passed to NoteOut.from_note
+#     as None, which raises instead of returning 404.
+#   * runner/sync/engine.py:92 — a str is placed where the payload declares int.
+[[tool.mypy.overrides]]
+module = [
+  "runner.cli",
+  "runner.local_api",
+  "runner.sync.engine",
+  "runner.tools.*",
+  "runner.tui",
+]
+ignore_errors = true

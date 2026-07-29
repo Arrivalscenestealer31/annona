@@ -1,21 +1,21 @@
 """
 Brain Models
 
-Note locale con stato di sincronizzazione verso COT cloud.
+A local note and its sync state toward the cloud.
 sync_status lifecycle:
   local_only → pending_sync → synced
                            ↘ sync_error
 """
-from dataclasses import dataclass, field
-from typing import Optional, List
-from datetime import datetime
+
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import List, Optional
 
-
-SYNC_LOCAL_ONLY  = "local_only"   # mai inviata al cloud
-SYNC_PENDING     = "pending_sync"  # marcata per sync al prossimo push
-SYNC_SYNCED      = "synced"        # presente su COT con cot_message_id
-SYNC_ERROR       = "sync_error"    # ultimo tentativo fallito
+SYNC_LOCAL_ONLY = "local_only"  # never sent to the cloud
+SYNC_PENDING = "pending_sync"  # marcata per sync al prossimo push
+SYNC_SYNCED = "synced"  # presente su COT con cot_message_id
+SYNC_ERROR = "sync_error"  # the last attempt failed
 
 
 def new_id() -> str:
@@ -26,11 +26,11 @@ def new_id() -> str:
 class Note:
     id: str
     title: str
-    content: str                    # markdown
+    content: str  # markdown
     tags: List[str]
     sync_status: str = SYNC_LOCAL_ONLY
 
-    # Riferimenti COT (popolati dopo sync)
+    # Cloud references, populated after a sync
     cot_message_id: Optional[str] = None
     cot_cluster_id: Optional[str] = None
     cot_cluster_name: Optional[str] = None

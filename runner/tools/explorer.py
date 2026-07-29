@@ -1,26 +1,27 @@
 """
 Explorer Tool
 
-Esplora cartelle, mappa strutture di file, cerca pattern.
+Explores directories, maps file structures and searches for patterns.
 Segue lo stesso approccio a 5 step di Claude Code:
   1. Mappa albero directory
   2. Identifica tipi di file
-  3. Legge contenuto rilevante
+  3. Reads the relevant content
   4. Raggruppa per tema/tipo
   5. Produce report strutturato
 """
-import os
+
 import fnmatch
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
+
 from loguru import logger
 
 from .base import Tool
-from .document_reader import SUPPORTED_FORMATS, is_readable, get_file_format
+from .document_reader import SUPPORTED_FORMATS, get_file_format
 
 
 class ExplorerTool(Tool):
-    """Tool per esplorare il filesystem locale"""
+    """Explore the local filesystem."""
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(
@@ -42,36 +43,30 @@ class ExplorerTool(Tool):
                             "find: locate files by name/type; "
                             "search: grep content across files; "
                             "analyze: full exploration report"
-                        )
+                        ),
                     },
-                    "path": {
-                        "type": "string",
-                        "description": "Directory or file path to explore"
-                    },
+                    "path": {"type": "string", "description": "Directory or file path to explore"},
                     "pattern": {
                         "type": "string",
-                        "description": "Glob pattern (find) or regex/substring (search)"
+                        "description": "Glob pattern (find) or regex/substring (search)",
                     },
                     "file_types": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Filter by extensions, e.g. [\".pdf\", \".docx\"]"
+                        "description": 'Filter by extensions, e.g. [".pdf", ".docx"]',
                     },
-                    "depth": {
-                        "type": "integer",
-                        "description": "Max recursion depth (default: 5)"
-                    },
+                    "depth": {"type": "integer", "description": "Max recursion depth (default: 5)"},
                     "include_hidden": {
                         "type": "boolean",
-                        "description": "Include hidden files/dirs (default: false)"
+                        "description": "Include hidden files/dirs (default: false)",
                     },
                     "max_results": {
                         "type": "integer",
-                        "description": "Max files to return (default: 200)"
-                    }
+                        "description": "Max files to return (default: 200)",
+                    },
                 },
-                "required": ["operation", "path"]
-            }
+                "required": ["operation", "path"],
+            },
         )
         self.config = config
 
@@ -84,7 +79,7 @@ class ExplorerTool(Tool):
         depth: int = 5,
         include_hidden: bool = False,
         max_results: int = 200,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         target = Path(path).expanduser().resolve()
 
@@ -116,7 +111,7 @@ class ExplorerTool(Tool):
         depth: int,
         include_hidden: bool,
         file_types: Optional[List[str]],
-        max_results: int
+        max_results: int,
     ) -> Dict[str, Any]:
         """Mappa la struttura ad albero di una directory"""
         tree_lines = []
@@ -173,7 +168,7 @@ class ExplorerTool(Tool):
         file_types: Optional[List[str]],
         depth: int,
         include_hidden: bool,
-        max_results: int
+        max_results: int,
     ) -> Dict[str, Any]:
         """Trova file per nome/pattern/tipo"""
         matches = []
@@ -188,13 +183,15 @@ class ExplorerTool(Tool):
                 if pattern.lower() not in file.name.lower():
                     continue
             stat = file.stat()
-            matches.append({
-                "path": str(file),
-                "name": file.name,
-                "format": get_file_format(str(file)),
-                "size_mb": round(stat.st_size / (1024 * 1024), 3),
-                "modified": stat.st_mtime,
-            })
+            matches.append(
+                {
+                    "path": str(file),
+                    "name": file.name,
+                    "format": get_file_format(str(file)),
+                    "size_mb": round(stat.st_size / (1024 * 1024), 3),
+                    "modified": stat.st_mtime,
+                }
+            )
 
         return {
             "success": True,
@@ -212,16 +209,14 @@ class ExplorerTool(Tool):
         file_types: Optional[List[str]],
         depth: int,
         include_hidden: bool,
-        max_results: int
+        max_results: int,
     ) -> Dict[str, Any]:
         """Cerca il pattern nel contenuto dei file di testo"""
         if not pattern:
             return {"success": False, "error": "pattern is required for search operation"}
 
         all_text_exts = (
-            SUPPORTED_FORMATS["text"]
-            + SUPPORTED_FORMATS["code"]
-            + SUPPORTED_FORMATS["csv"]
+            SUPPORTED_FORMATS["text"] + SUPPORTED_FORMATS["code"] + SUPPORTED_FORMATS["csv"]
         )
 
         results = []
@@ -247,11 +242,13 @@ class ExplorerTool(Tool):
                     if pattern_lower in line.lower()
                 ]
                 if matching:
-                    results.append({
-                        "path": str(file),
-                        "name": file.name,
-                        "matches": matching[:20],  # max 20 matches per file
-                    })
+                    results.append(
+                        {
+                            "path": str(file),
+                            "name": file.name,
+                            "matches": matching[:20],  # max 20 matches per file
+                        }
+                    )
             except Exception:
                 pass
 
@@ -264,11 +261,7 @@ class ExplorerTool(Tool):
         }
 
     def _analyze(
-        self,
-        root: Path,
-        depth: int,
-        include_hidden: bool,
-        max_results: int
+        self, root: Path, depth: int, include_hidden: bool, max_results: int
     ) -> Dict[str, Any]:
         """
         Analisi completa in 5 step:
@@ -288,14 +281,16 @@ class ExplorerTool(Tool):
         for file in _walk_files(root, depth, include_hidden):
             fmt = get_file_format(str(file))
             stat = file.stat()
-            all_files.append({
-                "path": str(file),
-                "name": file.name,
-                "format": fmt,
-                "extension": file.suffix.lower(),
-                "size_mb": round(stat.st_size / (1024 * 1024), 4),
-                "modified": stat.st_mtime,
-            })
+            all_files.append(
+                {
+                    "path": str(file),
+                    "name": file.name,
+                    "format": fmt,
+                    "extension": file.suffix.lower(),
+                    "size_mb": round(stat.st_size / (1024 * 1024), 4),
+                    "modified": stat.st_mtime,
+                }
+            )
 
         # Step 3: group by format category
         by_category: Dict[str, List[Dict]] = {}
@@ -312,11 +307,13 @@ class ExplorerTool(Tool):
                     fp = Path(finfo["path"])
                     with open(fp, "r", encoding="utf-8", errors="replace") as fh:
                         snippet = fh.read(500).strip()
-                    previews.append({
-                        "path": finfo["path"],
-                        "format": cat,
-                        "preview": snippet,
-                    })
+                    previews.append(
+                        {
+                            "path": finfo["path"],
+                            "format": cat,
+                            "preview": snippet,
+                        }
+                    )
                 except Exception:
                     pass
 
@@ -349,8 +346,10 @@ class ExplorerTool(Tool):
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _walk_files(root: Path, max_depth: int, include_hidden: bool):
     """Generator: yields all files up to max_depth"""
+
     def _recurse(path: Path, current_depth: int):
         if current_depth > max_depth:
             return

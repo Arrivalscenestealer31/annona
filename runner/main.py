@@ -6,6 +6,7 @@ remote backend. The daemon serves a FastAPI UI on 127.0.0.1:<port> and runs
 no background polling: it never receives tasks from the cloud, it only
 pushes notes the user explicitly creates locally.
 """
+
 import os
 import signal
 import time
@@ -15,11 +16,11 @@ from typing import Any, Dict, Optional
 from loguru import logger
 
 from .auth import AuthManager
+from .banner import print_runner_banner
 from .brain.capture import capture_task_as_note
 from .brain.manager import BrainManager
 from .config import ConfigManager
 from .executor import TaskExecutor
-from .banner import print_runner_banner
 from .local_api import LocalAPIServer
 from .service_urls import resolve_service_url
 from .sync.engine import SyncEngine
@@ -65,9 +66,7 @@ class RunnerDaemon:
         else:
             self.capture_to_brain = cfg_capture
 
-        _brain_dir = brain_dir or Path(
-            config.get("brain", {}).get("dir", str(DEFAULT_BRAIN_DIR))
-        )
+        _brain_dir = brain_dir or Path(config.get("brain", {}).get("dir", str(DEFAULT_BRAIN_DIR)))
         self.brain = BrainManager(_brain_dir)
         self.sync = SyncEngine(
             brain=self.brain,
@@ -126,7 +125,9 @@ class RunnerDaemon:
         elif not self._cloud_enabled:
             logger.info("Running in local-only mode (cloud.enabled=false — no remote push)")
         else:
-            logger.info("Running in local-only mode (not authenticated — login via UI or `akaion login`)")
+            logger.info(
+                "Running in local-only mode (not authenticated — login via UI or `akaion login`)"
+            )
 
         logger.info("Press Ctrl+C to stop")
 

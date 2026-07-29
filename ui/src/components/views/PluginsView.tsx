@@ -1,9 +1,9 @@
 export default function PluginsView() {
   const COMING = [
-    { name: "obsidian-importer", desc: "Importa vault Obsidian esistente nel brain locale" },
-    { name: "calendar-sync", desc: "Sincronizza eventi calendario come thought nel COT" },
-    { name: "telegram-bridge", desc: "Porta messaggi Telegram nel brain locale" },
-    { name: "daily-note", desc: "Crea automaticamente una nota giornaliera" },
+    { name: "obsidian-importer", desc: "Import an existing Obsidian vault into the local vault" },
+    { name: "calendar-sync", desc: "Sync calendar events into the cloud as thoughts" },
+    { name: "telegram-bridge", desc: "Bring Telegram messages into the local vault" },
+    { name: "daily-note", desc: "Create a daily note automatically" },
   ]
 
   return (
@@ -11,7 +11,7 @@ export default function PluginsView() {
       <div className="view-header">
         <div className="view-header-left">
           <div className="view-title">Plugin</div>
-          <div className="view-sub">Estendi il brain locale con plugin nativi Akaion</div>
+          <div className="view-sub">Extend the local vault with native Akaion plugins</div>
         </div>
       </div>
 
@@ -21,8 +21,8 @@ export default function PluginsView() {
             Plugin system — in arrivo
           </div>
           <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
-            Ogni plugin è un modulo Python installabile con <code style={{ background: "var(--bg-overlay)", padding: "1px 5px", borderRadius: 4 }}>akaion plugin install nome</code>.
-            Può registrare nuovi tool, hook sugli eventi del brain, e comandi CLI.
+            Every plugin is a Python module installable with <code style={{ background: "var(--bg-overlay)", padding: "1px 5px", borderRadius: 4 }}>akaion plugin install nome</code>.
+            It can register new tools, hook into vault events, and add CLI commands.
           </div>
         </div>
 

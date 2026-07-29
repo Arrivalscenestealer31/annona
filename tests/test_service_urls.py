@@ -1,10 +1,10 @@
 """
 Test for runner/service_urls.resolve_service_url
 """
+
 import pytest
 
 from runner.service_urls import resolve_service_url
-
 
 # ── env hygiene ───────────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ _ENV_KEYS = (
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    """Pulisce le env var rilevanti prima di ogni test."""
+    """Clear the relevant environment variables before each test."""
     for key in _ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
     yield
@@ -27,23 +27,24 @@ def _clean_env(monkeypatch):
 
 # ── Production defaults ───────────────────────────────────────────────────────
 
+
 def test_prod_default_cot(monkeypatch):
-    """In prod default, COT → https://api.akaion.com/api/service3."""
+    """In prod default, COT → https://api.prod.akaion.com/api/service3."""
     monkeypatch.setenv("ENVIRONMENT", "production")
-    assert resolve_service_url("cot") == "https://api.akaion.com/api/service3"
+    assert resolve_service_url("cot") == "https://api.prod.akaion.com/api/service3"
 
 
 def test_prod_default_all_services(monkeypatch):
     """Prod default: il runner OSS conosce solo main/cot/ai."""
     monkeypatch.setenv("ENVIRONMENT", "production")
-    base = "https://api.akaion.com"
+    base = "https://api.prod.akaion.com"
     assert resolve_service_url("main") == f"{base}/api/service1"
-    assert resolve_service_url("cot")  == f"{base}/api/service3"
-    assert resolve_service_url("ai")   == f"{base}/api/service4"
+    assert resolve_service_url("cot") == f"{base}/api/service3"
+    assert resolve_service_url("ai") == f"{base}/api/service4"
 
 
 def test_prod_custom_api_base(monkeypatch):
-    """AKAION_API_BASE custom (es. staging) viene rispettato."""
+    """A custom AKAION_API_BASE, e.g. staging, is honoured."""
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("AKAION_API_BASE", "https://staging.akaion.com")
     assert resolve_service_url("ai") == "https://staging.akaion.com/api/service4"
@@ -51,11 +52,12 @@ def test_prod_custom_api_base(monkeypatch):
 
 def test_prod_api_base_trailing_slash_stripped(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
-    monkeypatch.setenv("AKAION_API_BASE", "https://api.akaion.com/")
-    assert resolve_service_url("main") == "https://api.akaion.com/api/service1"
+    monkeypatch.setenv("AKAION_API_BASE", "https://api.prod.akaion.com/")
+    assert resolve_service_url("main") == "https://api.prod.akaion.com/api/service1"
 
 
 # ── Per-service overrides win ─────────────────────────────────────────────────
+
 
 def test_override_cot_wins(monkeypatch):
     """AKAION_COT_URL esplicito vince sul resolver."""
@@ -65,7 +67,7 @@ def test_override_cot_wins(monkeypatch):
 
 
 def test_override_in_dev_wins_too(monkeypatch):
-    """L'override vince anche in dev mode."""
+    """The override wins in dev mode too."""
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("AKAION_AI_URL", "https://my-tunnel.ngrok.io")
     assert resolve_service_url("ai") == "https://my-tunnel.ngrok.io"
@@ -78,17 +80,18 @@ def test_override_trailing_slash_stripped(monkeypatch):
 
 # ── Development → localhost ───────────────────────────────────────────────────
 
+
 def test_dev_localhost_main(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "development")
     assert resolve_service_url("main") == "http://localhost:8080"
 
 
 def test_dev_localhost_all_services(monkeypatch):
-    """Dev: porta locale per main/cot/ai."""
+    """Dev mode: local ports for main, cot and ai."""
     monkeypatch.setenv("ENVIRONMENT", "development")
     assert resolve_service_url("main") == "http://localhost:8080"
-    assert resolve_service_url("cot")  == "http://localhost:8083"
-    assert resolve_service_url("ai")   == "http://localhost:8084"
+    assert resolve_service_url("cot") == "http://localhost:8083"
+    assert resolve_service_url("ai") == "http://localhost:8084"
 
 
 def test_dev_aliases(monkeypatch):
@@ -100,6 +103,7 @@ def test_dev_aliases(monkeypatch):
 
 
 # ── Errors ────────────────────────────────────────────────────────────────────
+
 
 def test_unknown_service_raises():
     with pytest.raises(ValueError):

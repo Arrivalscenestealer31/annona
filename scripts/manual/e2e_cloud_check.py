@@ -36,9 +36,9 @@ from runner.tools.shell import ShellTool
 from runner.permissions.manager import PermissionManager
 
 # ── Config ────────────────────────────────────────────────────────────────────
-# Cloud:  https://api.akaion.com/api/service4
+# Cloud:  https://api.prod.akaion.com/api/service4
 # Local:  http://localhost:8084
-AI_BACKEND_URL = "https://api.akaion.com/api/service4"
+AI_BACKEND_URL = "https://api.prod.akaion.com/api/service4"
 
 RUNNER_CONFIG = {
     "tools": {

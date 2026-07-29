@@ -1,19 +1,21 @@
 """
 Cloud Client
 
-HTTP clients verso i backend Akaion. Il runner OSS supporta una sola
-direzione di sync: locale → remote (push thoughts dal Brain locale verso COT).
+HTTP clients for the Akaion backends. The runner supports one sync
+direction only: local -> remote, pushing notes from the local vault.
 
 I client esposti qui servono per:
   - verificare la salute del backend (health_check)
   - verificare il token Firebase (verify_auth)
-  - una chiamata AI opzionale via AIBackendClient (chat completion / agent turn)
+  - optional inference through AIBackendClient (chat completion / agent turn)
 
 Tutto ciò che riguarda polling-task / heartbeat / runner control-plane è
-fuori scope: il Brain locale non riceve task dal cloud.
+out of scope: the local vault never receives tasks from the cloud.
 """
+
+from typing import Any, Dict, List, Optional
+
 import httpx
-from typing import Optional, Dict, Any, List
 from loguru import logger
 
 from .service_urls import resolve_service_url
@@ -139,9 +141,7 @@ class AIBackendClient(AkaionBackendClient):
 
             if response.status_code == 200:
                 return response.json()
-            logger.error(
-                f"runner_agent_turn failed: {response.status_code} — {response.text}"
-            )
+            logger.error(f"runner_agent_turn failed: {response.status_code} — {response.text}")
             return None
         except Exception as e:
             logger.error(f"runner_agent_turn error: {e}")

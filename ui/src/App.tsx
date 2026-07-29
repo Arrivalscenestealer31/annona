@@ -144,10 +144,10 @@ export default function App() {
   };
 
   const statusLabel: Record<string, string> = {
-    running: "Runner attivo",
+    running: "Runner active",
     stopped: "Runner fermo",
     starting: "Avvio…",
-    error: "Errore runner",
+    error: "Runner error",
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -200,20 +200,20 @@ export default function App() {
 
           {/* Cloud sync badge — visible when in local mode */}
           {!isAuthed && (
-            <div className="ak-cloud-badge" role="region" aria-label="Modalità locale">
+            <div className="ak-cloud-badge" role="region" aria-label="Local mode">
               <div className="ak-cloud-badge__row">
                 <span className="ak-cloud-badge__dot" />
-                <span style={{ fontSize: 12, fontWeight: 500 }}>Locale</span>
+                <span style={{ fontSize: 12, fontWeight: 500 }}>Local</span>
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", lineHeight: 1.4, marginTop: -2 }}>
-                Note solo su questo Mac
+                Notes stay on this machine
               </div>
               <button
                 className="ak-cloud-badge__cta"
                 onClick={handleSidebarCloudLogin}
                 disabled={cloudSyncing}
               >
-                {cloudSyncing ? "Connessione…" : "Sincronizza →"}
+                {cloudSyncing ? "Connecting…" : "Sync →"}
               </button>
             </div>
           )}
@@ -268,7 +268,7 @@ export default function App() {
                 title="Coming soon"
                 style={{ cursor: "not-allowed", opacity: 0.55 }}
               >
-                Apri vault folder
+                Open vault folder
               </button>
               <button
                 className="ak-settings-item ak-settings-item--sub"
@@ -325,7 +325,7 @@ export default function App() {
           <>
             <div className="ak-statusbar__sep" />
             <div className="ak-statusbar__item ak-statusbar__item--muted">
-              <span>{noteCount} {noteCount === 1 ? "nota" : "note"}</span>
+              <span>{noteCount} {noteCount === 1 ? "note" : "notes"}</span>
             </div>
           </>
         )}

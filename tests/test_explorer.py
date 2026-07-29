@@ -5,19 +5,18 @@ Covers: map, find, search, analyze operations —
         including depth limits, hidden files, file type filters,
         pattern matching, and edge cases.
 """
-import pytest
-from pathlib import Path
 
 from runner.tools.explorer import ExplorerTool, _fmt_size
 
-
 # ── Fixture helpers ───────────────────────────────────────────────────────────
+
 
 def make_tool(config=None):
     return ExplorerTool(config or {})
 
 
 # ── MAP operation ─────────────────────────────────────────────────────────────
+
 
 class TestMap:
     def test_map_flat_directory(self, sample_dir):
@@ -61,9 +60,7 @@ class TestMap:
         assert sum(by_fmt.values()) >= 7
 
     def test_map_file_type_filter(self, sample_dir):
-        result = make_tool().execute(
-            "map", str(sample_dir), file_types=[".csv"]
-        )
+        result = make_tool().execute("map", str(sample_dir), file_types=[".csv"])
         tree = result["tree"]
         assert "financial_summary.csv" in tree
         assert "q1_report.txt" not in tree
@@ -98,6 +95,7 @@ class TestMap:
 
 # ── FIND operation ────────────────────────────────────────────────────────────
 
+
 class TestFind:
     def test_find_by_extension(self, sample_dir):
         result = make_tool().execute("find", str(sample_dir), file_types=[".csv"])
@@ -106,9 +104,7 @@ class TestFind:
         assert result["files"][0]["name"] == "financial_summary.csv"
 
     def test_find_multiple_extensions(self, sample_dir):
-        result = make_tool().execute(
-            "find", str(sample_dir), file_types=[".txt", ".md"]
-        )
+        result = make_tool().execute("find", str(sample_dir), file_types=[".txt", ".md"])
         assert result["success"] is True
         names = [f["name"] for f in result["files"]]
         assert "q1_report.txt" in names
@@ -175,6 +171,7 @@ class TestFind:
 
 # ── SEARCH operation ──────────────────────────────────────────────────────────
 
+
 class TestSearch:
     def test_search_finds_keyword(self, sample_dir):
         result = make_tool().execute("search", str(sample_dir), pattern="Revenue")
@@ -197,9 +194,7 @@ class TestSearch:
 
     def test_search_filtered_by_extension(self, sample_dir):
         result = make_tool().execute(
-            "search", str(sample_dir),
-            pattern="Revenue",
-            file_types=[".csv"]
+            "search", str(sample_dir), pattern="Revenue", file_types=[".csv"]
         )
         for file_result in result["results"]:
             assert file_result["path"].endswith(".csv")
@@ -232,13 +227,12 @@ class TestSearch:
     def test_search_respects_max_results(self, tmp_path):
         for i in range(10):
             (tmp_path / f"file_{i}.txt").write_text("target word here")
-        result = make_tool().execute(
-            "search", str(tmp_path), pattern="target", max_results=3
-        )
+        result = make_tool().execute("search", str(tmp_path), pattern="target", max_results=3)
         assert result["files_with_matches"] <= 3
 
 
 # ── ANALYZE operation ─────────────────────────────────────────────────────────
+
 
 class TestAnalyze:
     def test_analyze_returns_all_sections(self, sample_dir):
@@ -259,9 +253,9 @@ class TestAnalyze:
     def test_analyze_classifies_by_format(self, sample_dir):
         result = make_tool().execute("analyze", str(sample_dir))
         by_cat = result["stats"]["by_category"]
-        assert "text" in by_cat       # .txt files
-        assert "csv" in by_cat        # .csv
-        assert "code" in by_cat       # .py, .sh, .json, .md
+        assert "text" in by_cat  # .txt files
+        assert "csv" in by_cat  # .csv
+        assert "code" in by_cat  # .py, .sh, .json, .md
 
     def test_analyze_files_have_metadata(self, sample_dir):
         result = make_tool().execute("analyze", str(sample_dir))
@@ -313,6 +307,7 @@ class TestAnalyze:
 
 # ── Unknown operation ─────────────────────────────────────────────────────────
 
+
 class TestErrors:
     def test_unknown_operation(self, sample_dir):
         result = make_tool().execute("explode", str(sample_dir))
@@ -327,6 +322,7 @@ class TestErrors:
 
 
 # ── Helper function ───────────────────────────────────────────────────────────
+
 
 class TestFmtSize:
     def test_bytes(self):

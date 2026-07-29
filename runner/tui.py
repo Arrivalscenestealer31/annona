@@ -7,24 +7,18 @@ Layout:
   │ sidebar (status + backends) │  logs live   │
   └────────────────── Footer ──────────────────┘
 """
+
 from __future__ import annotations
 
-import asyncio
-import os
-import subprocess
-import sys
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, ScrollableContainer
-from textual.reactive import reactive
-from textual.widgets import Footer, Header, Label, RichLog, Static, Button
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Button, Footer, Header, Label, RichLog, Static
 
 from .service_urls import resolve_service_url
 
@@ -165,6 +159,7 @@ Button.danger {
 # Widgets
 # ─────────────────────────────────────────────────────────────
 
+
 class InfoCard(Static):
     """Card con informazioni runner."""
 
@@ -179,8 +174,10 @@ class InfoCard(Static):
         short_id = (self._runner_id[:20] + "…") if len(self._runner_id) > 20 else self._runner_id
         yield Label(f"[bold #00d9ff]id    [/] {short_id}", classes="card-row", id="info-id")
         yield Label(f"[bold #00d9ff]email [/] {self._email}", classes="card-row", id="info-email")
-        yield Label(f"[bold #00d9ff]status[/] [green]● running[/]", classes="card-row", id="info-status")
-        yield Label(f"[bold #00d9ff]uptime[/] 00:00:00", classes="card-row", id="info-uptime")
+        yield Label(
+            "[bold #00d9ff]status[/] [green]● running[/]", classes="card-row", id="info-status"
+        )
+        yield Label("[bold #00d9ff]uptime[/] 00:00:00", classes="card-row", id="info-uptime")
 
     def tick(self):
         delta = datetime.now() - self._started_at
@@ -208,10 +205,10 @@ class BackendsCard(Static):
 
     # Mappa logica → (label, service-key per resolve_service_url)
     BACKENDS: dict[str, tuple[str, str]] = {
-        "main":     ("Main",     "main"),
-        "ai":       ("AI",       "ai"),
+        "main": ("Main", "main"),
+        "ai": ("AI", "ai"),
         "calendar": ("Calendar", "calendar"),
-        "cot":      ("CoT",      "cot"),
+        "cot": ("CoT", "cot"),
     }
 
     def compose(self) -> ComposeResult:
@@ -236,6 +233,7 @@ class BackendsCard(Static):
 # ─────────────────────────────────────────────────────────────
 # App
 # ─────────────────────────────────────────────────────────────
+
 
 class AkaionDashboard(App):
     """Dashboard interattiva Akaion Runner."""
@@ -334,14 +332,14 @@ class AkaionDashboard(App):
             icon = "✓" if ok else "✗"
             suffix = f" [#334155]({status_code})[/]" if ok else "  [red]unreachable[/]"
             self.call_from_thread(
-                log.write,
-                f"[#334155]{ts}[/]  [{color}]{icon}[/] {name} backend{suffix}"
+                log.write, f"[#334155]{ts}[/]  [{color}]{icon}[/] {name} backend{suffix}"
             )
 
 
 # ─────────────────────────────────────────────────────────────
 # Entry point
 # ─────────────────────────────────────────────────────────────
+
 
 def run_dashboard(email: str, runner_id: str, token: str):
     AkaionDashboard(email=email, runner_id=runner_id, token=token).run()

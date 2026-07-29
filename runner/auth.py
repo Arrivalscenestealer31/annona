@@ -1,28 +1,29 @@
 """
 Authentication Manager
 
-Gestisce autenticazione Firebase del runner.
+Firebase authentication for the runner.
 
 Due metodi supportati:
   1. Email + Password  → Firebase REST sign-in
-  2. Google OAuth      → browser popup + server locale (come `gcloud auth login`)
+  2. Google OAuth      -> browser popup + a local server, like `gcloud auth login`
 
 In entrambi i casi il risultato è un Firebase ID token usato come Bearer.
-Auto-refresh tramite refreshToken quando il token scade (~1h).
+Tokens are refreshed automatically via the refresh token when they expire (~1h).
 """
+
 import json
-import uuid
-import time
+import os
 import socket
 import threading
+import time
+import uuid
 import webbrowser
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Optional
-from cryptography.fernet import Fernet
-import os
-import httpx
 
+import httpx
+from cryptography.fernet import Fernet
 
 # Firebase Web SDK API key for the default Akaion project (akaion-app-213b6).
 # This is NOT a secret — Firebase Web API keys are designed to be exposed
@@ -51,8 +52,8 @@ def _get_free_port() -> int:
 def firebase_browser_login(timeout: int = 120) -> dict:
     """
     Apre il browser per il login Google via Firebase.
-    Avvia un mini HTTP server locale che cattura il token dopo il popup.
-    Restituisce dict con idToken, refreshToken, email.
+    Starts a small local HTTP server that captures the token after the popup.
+    Returns a dict with idToken, refreshToken and email.
     (Come `gcloud auth login`)
     """
     import json as _json
@@ -104,7 +105,7 @@ def firebase_browser_login(timeout: int = 120) -> dict:
 <body>
   <div class="card">
     <span class="logo">Akaion Runner</span>
-    <p class="sub">Connetti il tuo runner locale<br>al cloud Akaion.</p>
+    <p class="sub">Connect your local runner<br>to Akaion Cloud.</p>
     <button class="btn" id="btn">
       <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
         <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908C16.658 14.251 17.64 11.943 17.64 9.2Z"/>
@@ -145,7 +146,7 @@ def firebase_browser_login(timeout: int = 120) -> dict:
           body: JSON.stringify({{ idToken, refreshToken: cred.user.refreshToken, email: cred.user.email }}),
         }});
         status.className = 'status ok';
-        status.textContent = '✓ Autenticato — puoi chiudere questa scheda.';
+        status.textContent = '✓ Signed in — you can close this tab.';
       }} catch (e) {{
         status.className = 'status err';
         status.textContent = e.message;
@@ -173,7 +174,7 @@ def firebase_browser_login(timeout: int = 120) -> dict:
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
-            # Spegne il server dopo aver risposto
+            # Shut the server down once the response is out
             threading.Thread(target=server.shutdown, daemon=True).start()
 
     server = HTTPServer(("localhost", port), _Handler)
@@ -186,14 +187,13 @@ def firebase_browser_login(timeout: int = 120) -> dict:
     server.serve_forever()
 
     if not result.get("idToken"):
-        raise TimeoutError("Login timeout: nessuna risposta entro il tempo limite")
+        raise TimeoutError("Sign-in timed out: no response within the time limit")
 
     return result
 
 
-
 class AuthManager:
-    """Gestisce l'autenticazione Firebase del runner."""
+    """Firebase authentication for the runner."""
 
     def __init__(self, config_dir: Optional[Path] = None):
         if config_dir is None:
@@ -226,7 +226,7 @@ class AuthManager:
     def firebase_sign_in(email: str, password: str) -> dict:
         """
         Autentica con Firebase REST API.
-        Restituisce il dict con idToken, refreshToken, expiresIn.
+        Returns a dict with idToken, refreshToken and expiresIn.
         """
         resp = httpx.post(
             FIREBASE_SIGN_IN_URL,
@@ -238,9 +238,9 @@ class AuthManager:
             msg = resp.json().get("error", {}).get("message", "Authentication failed")
             # Messaggi Firebase più leggibili
             friendly = {
-                "EMAIL_NOT_FOUND": "Email non trovata",
+                "EMAIL_NOT_FOUND": "Email not found",
                 "INVALID_PASSWORD": "Password errata",
-                "USER_DISABLED": "Account disabilitato",
+                "USER_DISABLED": "Account disabled",
                 "INVALID_LOGIN_CREDENTIALS": "Credenziali non valide",
             }
             raise ValueError(friendly.get(msg, msg))
@@ -248,7 +248,7 @@ class AuthManager:
 
     @staticmethod
     def _firebase_refresh(refresh_token: str) -> dict:
-        """Rinnova il Firebase ID token tramite refresh token."""
+        """Renew the Firebase ID token using the refresh token."""
         resp = httpx.post(
             FIREBASE_REFRESH_URL,
             params={"key": FIREBASE_API_KEY},
@@ -270,7 +270,7 @@ class AuthManager:
         expires_in: int = 3600,
         email: Optional[str] = None,
     ):
-        """Salva le credenziali Firebase cifrate su disco."""
+        """Write the Firebase credentials to disk, encrypted."""
         runner_id = self.get_runner_id() or str(uuid.uuid4())
         auth_data = {
             "firebase_token": self._encrypt(firebase_token),
@@ -289,8 +289,8 @@ class AuthManager:
 
     def get_firebase_token(self) -> Optional[str]:
         """
-        Restituisce un Firebase ID token valido.
-        Se scaduto tenta il refresh automatico.
+        Returns a valid Firebase ID token.
+        Refreshes it automatically if it has expired.
         """
         # Token da env (dev/override, nessun auto-refresh)
         env_token = os.getenv("AKAION_API_KEY")
@@ -306,11 +306,11 @@ class AuthManager:
 
             expires_at = auth_data.get("expires_at", 0)
 
-            # Token ancora valido
+            # Still valid
             if time.time() < expires_at:
                 return self._decrypt(auth_data["firebase_token"])
 
-            # Token scaduto → refresh
+            # Expired -> refresh
             refresh_token = self._decrypt(auth_data["refresh_token"])
             refreshed = self._firebase_refresh(refresh_token)
             new_token = refreshed["id_token"]
@@ -318,7 +318,9 @@ class AuthManager:
             new_expires = int(refreshed.get("expires_in", 3600))
 
             self.save_credentials(
-                new_token, new_refresh, new_expires,
+                new_token,
+                new_refresh,
+                new_expires,
                 email=auth_data.get("email"),
             )
             return new_token
