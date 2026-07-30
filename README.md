@@ -1,305 +1,265 @@
-# Dogana
+<div align="center">
 
-> *doh-GAH-nah* · Italian for **customs**
+# Annona
 
-[![release](https://img.shields.io/github/v/release/Akaion-repos/akaion-app-runner?include_prereleases&label=release)](https://github.com/Akaion-repos/akaion-app-runner/releases)
+**Where it runs is a decision.**
+
+*an-NO-na* · the office that kept Rome fed
+
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
-[![ci](https://img.shields.io/badge/tests-313%20passing-brightgreen)](.github/workflows/ci.yml)
+[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20DGX-lightgrey)](#install)
+[![tests](https://img.shields.io/badge/tests-343%20passing-brightgreen)](.github/workflows/ci.yml)
+[![status](https://img.shields.io/badge/status-beta-orange)](#the-honest-part)
 
-**Nothing crosses undeclared.**
+</div>
 
-The perimeter for AI agents. Dogana receives plans, executes them inside your
-infrastructure, and produces a record of what left the building and what did not.
+---
 
-A customs post is the whole idea: everything crossing the border is declared,
-checked against the rules, and either **cleared** or **held** — and a stamped
-**manifest** survives the crossing.
+Rome imported its grain. Sicily, Africa, Egypt — the city could not feed itself,
+and everyone knew what that meant: whoever controlled the ships controlled Rome.
+So the Republic, and then the Empire, refused to leave it to the market. The
+***cura annonae*** was a permanent office with a prefect at its head, and its job
+was to decide **where the grain came from, which route it took, which granary
+held it, and who received it** — and to keep the record of all four.
 
-It is a daemon you install where your data already lives. Agents act through it,
-not around it: every tool call passes a policy check, every note stays on disk
-as plain markdown, and nothing reaches a remote backend unless you say so.
+It was not built out of paranoia. It was built out of arithmetic: **a republic
+cannot outsource what it cannot live without.**
 
-> **Why this exists.** Agentic AI asks organisations to hand their internal
-> systems to a remote model. For a law firm, a clinic, or an engineering
-> practice, that trade is not available — the data is privileged by law. The
-> usual answers are *powerful but not sovereign* (cloud copilots) or *sovereign
-> but useless* (a local chatbot with no access to anything). The Runner is the
-> third option: the model may be remote, the **execution and the data are not**.
+Your organisation is now in that position with compute. Every agent you deploy
+sends your material somewhere, and "somewhere" is currently decided by whichever
+provider a developer typed into a config file eighteen months ago.
 
-> **Status: internal beta.** This repository is private during beta and bundles
-> are unsigned. macOS will warn on first launch — right-click the app and pick
-> **Open**. See [What it does not do yet](#what-it-does-not-do-yet) for an honest
-> account of the gaps.
+**Annona is the office.** It is a daemon you install where your data already
+lives, and for every single step of every agent run it decides where that step is
+allowed to execute, enforces the decision, and writes it down.
 
-## The trust boundary
+```
+$ annona why step_7f3a
+step_7f3a  inference  HELD
+  class        restricted  (working set touched /mnt/pratiche/2026/BG-114.pdf)
+  rule         rules[0]  restricted → [local-gpu], on_unavailable: hold
+  candidates   local-gpu (unhealthy: connection refused since 14:02:11)
+  not chosen   frontier — max_class public < restricted
+               eu-cluster — max_class internal < restricted
+  outcome      held at 14:03:07, queued for operator review
+  ledger       #418  sha256:9c1f…a7  (chain verified)
+```
 
-The Runner is open source on purpose, and the boundary is deliberate. It is the
-component that touches your data, so it must be the component you can read.
+That refusal is the product. A gateway in the same situation would have quietly
+failed over to the frontier API and returned a good answer.
 
-|  | **Runner** (this repo, Apache-2.0) | **Agents Studio** (hosted, proprietary) |
-|---|---|---|
-| Decides *what* to do | no | yes — plans, versions, fleet |
-| Decides *whether it may* | **yes, and it is the only one that does** | no |
-| Sees your data | yes, and does not let it leave | never in the clear |
-| Runs where | your machine, your server, your appliance | EU cloud |
+## The argument nobody was having
 
-You can run the Runner with no account at all, point it at your own backend, or
-fork it and replace the cloud side entirely — three HTTP endpoints, documented
-in [Self-hosting the cloud side](#self-hosting-the-cloud-side).
+You have been told to pick one of three architectures: run models **on-prem**
+(private, capped by your hardware), call **frontier APIs** (excellent, and your
+material leaves), or run **your own weights in your own cloud** (a fine
+compromise that costs you an MLOps team).
 
-## Where it runs
+The industry argues about which column wins. That argument is the mistake.
 
-Three topologies, **one binary, one release**. They differ in configuration —
-which backends are registered and what the policy permits — never in code. A fork
-per deployment is how sovereignty claims rot, so there isn't one.
+> **The right column is a property of the request, not of the company.**
 
-| | **Detached** | **Attached** | **Appliance** |
+Summarising a public tender is not the same problem as reasoning over a client's
+medical file, and the second does not become safe because procurement signed a
+DPA. One organisation needs all three columns, chosen per step, ten thousand
+times a day, by something that can prove afterwards what it chose.
+
+Nothing in the stack does that:
+
+| Layer | Examples | Decides | Cannot |
 |---|---|---|---|
-| Hardware | laptop, Mac mini in a cupboard | any | DGX-class, or EU colocation |
-| Control plane | none — local plans and CLI | Agents Studio, outbound-only | Agents Studio |
-| Inference | local runtime only | local + remote, routed by policy | local (vLLM), remote by exception |
-| Users | one | one | many, per-user policy |
-| Network | may be fully air-gapped | outbound 443 only | outbound 443 only |
+| Serving runtime | vLLM, Ollama, TensorRT-LLM | how fast one model answers on one box | anything about *which* box, or about tools |
+| AI gateway | LiteLLM, Portkey, Envoy AI Gateway | which endpoint a token stream hits | execute a tool, read a file, classify material, prove anything |
+| Agent framework | datapizza-ai, LangGraph | how you *write* an agent | placement — a config line, picked once |
+| Sovereign models | Minerva, Velvet, Italia | which weights you may run in Europe | where a given request actually goes |
+| **Annona** | — | **where each step runs, whether it may, and what crosses** | replace any of the above — it orchestrates them |
 
-```yaml
-# ~/.akaion/config.yaml — the axis that selects a topology
-profile: detached        # detached | attached | appliance
+> **The claim, stated so you can falsify it.** Annona is the first open-source
+> project in which the **placement of every inference and every tool call is a
+> policy decision, enforced by the runtime and verifiable after the fact.** Find
+> a project that does this and we will say so here.
+
+## How it works
+
+```mermaid
+flowchart TB
+    subgraph CP["Control plane · Kai · Agents Studio · or your own"]
+        PLAN["plans · memory · orchestration"]
+    end
+    subgraph WALLS["Your perimeter"]
+        FON["<b>ANNONA</b><br/>classify → decide placement → execute → record"]
+        DATA["files · databases · internal apps"]
+        GPU["your GPU<br/>vLLM · open weights"]
+    end
+    EU["private cluster<br/>EU tenant"]
+    FRONTIER["frontier APIs"]
+
+    PLAN -- "signed plan" --> FON
+    FON -. "cleared results · ledger digests<br/>never raw material" .-> PLAN
+    FON --> DATA
+    FON <--> GPU
+    FON <-- "class: internal" --> EU
+    FON <-- "class: public, or a brief" --> FRONTIER
+
+    classDef kernel fill:#1F6F68,color:#fff,stroke:#1F6F68,stroke-width:2px
+    class FON kernel
 ```
 
-Detached means detached: no account, no remote host, no outbound connection at
-all. It is the configuration we expect a fork to start from.
+Annona is deliberately **not** the thing that decides *what* to do. Planning and
+memory stay in the control plane — ours, or yours over three HTTP endpoints. The
+component that touches your data is the one you can read, and it is small enough
+to read. That is the entire trust argument.
 
-## How data moves
+Four rules give the picture its teeth:
 
-Three rules, enforced by the daemon's shape rather than by a promise:
+**Fail closed.** No permitted substrate is available → the step is *held*. Not
+downgraded, not rerouted, not "best effort".
 
-- **Outbound-only.** The Runner opens no listening port to the internet. It
-  polls. There is nothing to expose, nothing to firewall, no inbound rule to
-  request from a client's IT department.
-- **Nothing leaves by default.** Cloud sync is opt-in (`cloud.enabled: false` is
-  the shipped default). Until you flip it, the Runner never contacts a remote
-  host except to authenticate if you ask it to.
-- **Push, never pull.** Notes go local → remote, per note, on your command.
-  Cloud content is never written into your vault. Deleting `~/akaion-brain/`
-  deletes everything the Runner knows.
+**Failover may cost latency, money or model quality. Never jurisdiction.** This
+is the one sentence that separates a kernel from a gateway with a fallback list.
 
-The Runner contacts a remote backend in exactly three situations: you log in,
-you push pending notes, or a plan runs against a cloud model provider. Each is
-an explicit action. There is no telemetry and no background upload.
+**Contamination is monotone.** Once a transcript has touched restricted material
+it stays restricted. Tools executing locally is *not* the same as data staying
+local — the transcript is the leak, and it travels with the next inference.
 
-## Install
+**Outbound only.** No listening port on the internet. Nothing to firewall, no
+inbound rule to request from a customer's IT department — historically the step
+where sovereign deployments die.
 
-### Native app (`.dmg` / `.AppImage` / `.exe`) — recommended
+## The same plan, two different verdicts
 
-Download the latest build for your platform from
-[Akaion-repos/akaion-app-runner/releases](https://github.com/Akaion-repos/akaion-app-runner/releases).
+Ask it to compare a client file against your case law:
 
-- **macOS Apple Silicon**: `Akaion Runner_<ver>_aarch64.dmg`
-- **macOS Intel**: `Akaion Runner_<ver>_x64.dmg`
-- **Windows**: `Akaion Runner_<ver>_x64-setup.exe` (or `.msi`)
-- **Linux**: `Akaion Runner_<ver>_amd64.AppImage` (or `.deb`)
-
-On macOS, drag to `/Applications` and launch from Spotlight. The first launch
-needs a right-click → **Open** because the bundle is unsigned during beta.
-
-With the `gh` CLI:
-
-```bash
-# macOS arm64 (M-series)
-gh release download v0.1.0 -R Akaion-repos/akaion-app-runner --pattern "*aarch64.dmg"
-open "Akaion Runner_0.1.0_aarch64.dmg"
-
-# Linux
-gh release download v0.1.0 -R Akaion-repos/akaion-app-runner --pattern "*.AppImage"
-chmod +x Akaion\ Runner_*.AppImage && ./Akaion\ Runner_*.AppImage
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Annona
+    participant L as Local model
+    participant X as Frontier API
+    U->>A: "Compare this client file with our case law"
+    A->>A: class = restricted (touched /mnt/pratiche)
+    A->>L: summarise locally → brief, 380 tokens
+    A->>A: reclassify the brief → still internal
+    A->>L: reason over brief + local index
+    A--)X: HELD — never called
+    A-->>U: answer · 3 steps · 3 local · 0 crossings
 ```
 
-### From source
+Now ask the same question about a public tender document. Steps 1 and 3 are
+placed on the frontier model, the answer is better, and it costs a tenth as much.
+
+**Same code. Same plan. Different policy verdict.** That is the product.
+
+## Try it in sixty seconds
 
 ```bash
-git clone git@github.com:Akaion-repos/akaion-app-runner.git
-cd akaion-app-runner
+git clone git@github.com:Akaion-repos/annona.git
+cd annona
 make setup          # venv + dependencies
-make demo           # see it run — no credentials, no network
-make run            # daemon + local UI on 127.0.0.1:7070
+make demo           # a real agentic run — no credentials, no network
 ```
 
-Open `http://127.0.0.1:7070`. No account required.
-
-`make demo` is the fastest way to understand this repository. It runs a **real
+`make demo` is the fastest way to understand this repository. It drives a **real
 agentic loop** — real tool execution against real files, real policy checks —
-against a scripted backend, so it needs no API key and opens no socket. It shows
-one task the policy permits and one it refuses:
+from a scripted backend, so it needs no API key and opens no socket. It shows one
+task the policy permits and one it refuses:
 
 ```
 1 · a task the policy permits
   1. ok      explorer         {'operation': 'map', 'path': '…/documents'}
-     → {'success': True, …}
   2. ok      document_reader  {'path': '…/reports/q1_report.txt'}
-     → {'success': True, …}
-
-  answer     Q1 2026: 142 pratiche aperte, 98 chiuse, 412.000 EUR…
+     answer  Q1 2026: 142 pratiche aperte, 98 chiuse, 412.000 EUR…
 
 2 · a task the policy refuses
   1. denied  filesystem       {'operation': 'read', 'path': '~/.ssh/id_rsa'}
      → {'error': 'Permission denied for tool: filesystem'}
 ```
 
-The same run is a CI gate on every push: `python -m runner.demo --check`.
+Nothing left the process. The same run is a CI gate on every push
+(`python -m runner.demo --check`), so that claim cannot rot.
 
-## What it does
+Then: `make run` starts the daemon and a local UI on `127.0.0.1:7070`. No account
+required, ever.
 
-### Local memory
-
-Every note lives under `~/akaion-brain/` as a markdown file, indexed in SQLite
-at `~/akaion-brain/.akaion/index.db`. The vault is greppable, diffable and
-Git-friendly: walk away from the Runner and your prose is still plain markdown
-that any tool can read.
-
-One caveat, stated plainly: **the markdown holds the body only.** Titles, tags
-and sync state live in the SQLite index, and files are named by uuid rather than
-by title. Today you keep the text and lose the structure. Writing YAML
-frontmatter would fix it, and is a storage migration rather than a refactor — see
-the gap table below.
-
-```bash
-./start.sh
-# → http://127.0.0.1:7070 → "Open my vault" (no login)
-```
-
-### Local execution
-
-Plans arrive as tasks and execute on the machine through a tool registry:
-filesystem, shell, browser, a document reader (PDF, DOCX, XLSX, CSV, source
-files), and a filesystem explorer. Every call is checked against the policy in
-`~/.akaion/config.yaml` before it runs, and every executed task can be captured
-back into the vault as a note (`runner.capture_to_brain`).
-
-Reasoning can come from a cloud provider (Akaion, Anthropic, OpenAI, Google) or
-from a local model over Ollama. See
-[What it does not do yet](#what-it-does-not-do-yet) for the current limits of
-local reasoning — this is the gap we are closing next.
-
-### Optional cloud sync
-
-With an Akaion account, or your own compatible backend:
-
-1. Sidebar → **Sync with Akaion Cloud** → sign in.
-2. Mark a note `pending` in the Brain view.
-3. Sidebar → **Sync** → **Push pending**.
-
-## What it does not do yet
-
-Published deliberately, because a perimeter you cannot verify is a slogan. These
-are the gaps between the claim above and the code in this repository today:
-
-| Gap | Today | Tracked in |
-|---|---|---|
-| **Policy is default-allow** | `PermissionManager` permits any tool it does not recognise, and permits everything in a category whose allow-list is empty. It is an advisory filter, not an enforcing kernel. | [Research § Enforcement](docs/research/index.md) |
-| **No egress control** | Policy covers what a tool may *touch*. Nothing yet classifies or gates what leaves the perimeter toward a model provider. | [Research § PCR](docs/research/index.md) |
-| **No measured leak rate** | "Your data does not leave" is currently an architectural argument, not a number. | [Research § Leak canary](docs/research/index.md) |
-| **Audit trail is a log file** | Tool calls are logged, but the log is not tamper-evident and cannot be independently verified. | [Research § Trace-as-proof](docs/research/index.md) |
-| **Local reasoning has no tool use** | With `ai.provider: local`, the agentic loop falls back to plain chat completion. Fully local mode can talk; it cannot yet act. | [Research § Local agentic loop](docs/research/index.md) |
-| **Vault metadata is not portable** | Markdown files hold the note body. Titles, tags and sync state exist only in the SQLite index, and files are named by uuid. Asserted in `tests/test_e2e_topologies.py` so it cannot change silently. | frontmatter migration |
-
-Closing these is the research programme, not a backlog of chores. Each one has a
-metric attached — see [`docs/research/index.md`](docs/research/index.md).
-
-## CLI
-
-```bash
-akaion init                    # one-time setup (creates ~/.akaion/config.yaml)
-akaion run                     # start the daemon (long-lived UI server)
-akaion run --once --task ".."   # execute a single ad-hoc task
-akaion login / logout          # Akaion Cloud credentials (optional)
-akaion cloud enable / disable   # toggle cloud push capability
-akaion status                  # config, vault stats, cloud connection
-akaion note add "title"        # create a note
-akaion note list               # list notes
-akaion sync push               # push every note marked pending
-```
-
-## Configuration
-
-Two layers: a YAML file under `~/.akaion/` and environment variables.
-
-### `~/.akaion/config.yaml`
+## The policy is a file you own
 
 ```yaml
-cloud:
-  enabled: false            # default: pure local. `akaion cloud enable` flips this.
-  api_url: https://api.prod.akaion.com
-  polling_interval: 5
-  timeout: 30
-ai:
-  provider: akaion          # akaion | anthropic | openai | google | local
-  local:
-    endpoint: http://localhost:11434   # Ollama
-runner:
-  capture_to_brain: true    # save every executed task as a local note
-permissions:
-  filesystem:
-    allowed_paths: [~/Documents, ~/Downloads]
-    denied_paths:  [~/.ssh]
-  shell:
-    enabled: true
-    allowed_commands: [ls, cat, grep, find, git]
-logging:
-  level: INFO
-  file: logs/runner.log
+# ~/.annona/policy.yaml
+classes:
+  restricted:                      # never leaves the walls
+    paths:    ["/mnt/pratiche/**", "~/clienti/**"]
+    patterns: ['[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]']    # codice fiscale
+  internal:
+    paths:    ["~/Documents/**"]
+  public:
+    default: true
+
+rules:
+  - match: { class: restricted }
+    allow: [local-gpu]
+    on_unavailable: hold           # the whole point. No silent downgrade.
+  - match: { class: internal }
+    allow: [local-gpu, eu-cluster]
+    on_unavailable: queue
+  - match: { class: public }
+    allow: [local-gpu, eu-cluster, frontier]
+    prefer: cost
 ```
 
-An empty allow-list currently means *allow all* for that category — see
-[What it does not do yet](#what-it-does-not-do-yet). Write your allow-lists
-explicitly until that inverts.
+A DPO can read that in one sitting, which is the design constraint. Full schema,
+placement algorithm and the state machine behind it:
+**[`docs/design/hld.md`](docs/design/hld.md)**.
 
-### Environment variables
+## Where it runs
 
-See [`.env.example`](.env.example) for the full list. The Runner reads them from
-`~/.akaion/.env` or the shell. `start.sh` loads `.env.prod` / `.env.dev`
-profiles via `RUNNER_ENV=prod|dev`.
+Three topologies, **one binary, one release**. They differ in configuration —
+which substrates are registered and what the policy permits — never in code. A
+fork per deployment is how sovereignty claims rot, so there isn't one.
 
-| Variable | Purpose | Default |
+| | **Detached** | **Attached** | **Appliance** |
+|---|---|---|---|
+| Hardware | laptop, Mac mini in a cupboard | any server | DGX-class, or EU colocation |
+| Control plane | none — local plans and CLI | Agents Studio, outbound only | Agents Studio |
+| Inference | local runtime only | local + remote, by policy | local (vLLM), remote by exception |
+| Users | one | one | many, per-user policy |
+| Network | may be fully air-gapped | outbound 443 only | outbound 443 only |
+
+Detached means detached: no account, no remote host, no outbound connection at
+all. It is the configuration we expect a fork to start from.
+
+On a **DGX Spark** the appliance runs Annona and vLLM under one compose file,
+with the daemon unprivileged and only vLLM touching the GPU. Two things that
+appliance vendors usually skip, and this one states up front: every image must be
+`linux/arm64` + CUDA 13 (x86 images silently do not run on a GB10), and the real
+ceiling is memory bandwidth, not the 128 GB. See
+[HLD §7.2](docs/design/hld.md#72-the-appliance-on-a-dgx-spark) — including what
+GPU attestation does *not* buy you on that hardware.
+
+## The honest part
+
+This project publishes its gaps, because a perimeter you cannot verify is a
+slogan. Today Annona executes agent plans locally, checks every tool call, and
+runs against Anthropic, Akaion, or any OpenAI-compatible endpoint. The kernel it
+is named after is not finished:
+
+| Gap | Today | Phase |
 |---|---|---|
-| `AKAION_API_BASE` | Cloud backend host | `https://api.prod.akaion.com` |
-| `AKAION_HOME` | Config + auth + vault parent dir | `~/.akaion` |
-| `AKAION_BRAIN_DIR` | Vault directory | `~/akaion-brain` |
-| `AKAION_LOG_LEVEL` | Loguru log level | `INFO` |
+| **The prefect (L2) does not exist** | policy checks are an advisory filter in `permissions/manager.py` | F1 |
+| **Policy is default-allow** | an unrecognised tool is permitted; an empty allow-list means *allow all* | F1 |
+| **No classification** | nothing scores material, so `class` has no source yet | F1 |
+| **No placement engine** | the provider is picked by config, once, per session | F2 |
+| **No egress gate** | with a cloud provider the transcript — file contents included — crosses on every turn | F2 |
+| **Ledger is a log file** | not hash-chained, not verifiable | F3 |
+| **Local reasoning cannot use tools** | with a local provider the loop degrades to plain chat; grammars are the fix and the research claim | F1 |
+| **No arm64 container release** | blocks the DGX acceptance run | F0 |
 
-## Architecture
+Each one has a metric and a target attached rather than a promise —
+[HLD §9](docs/design/hld.md#9-verification-the-numbers-this-design-lives-or-dies-by)
+and [`docs/research/index.md`](docs/research/index.md), where negative results get
+published too.
 
-```
-~/akaion-brain/                          ← vault (markdown + SQLite)
-├── notes/
-│   ├── 2026-05-19-meeting.md
-│   └── …
-└── .akaion/index.db                     ← search + sync state
-
-~/.akaion/                               ← runner config
-├── config.yaml
-├── auth.json                            ← encrypted Firebase ID token
-└── .key                                 ← Fernet key for auth.json
-
-akaion-app-runner/
-├── runner/
-│   ├── kernel/                  L0  value types · ports · block translation
-│   ├── capability/              L1  backends/ (echo, anthropic, akaion) · tooling
-│   ├── agent/                   L3  the agentic loop · system prompt
-│   ├── demo.py                  L4  offline end-to-end run
-│   ├── ai_client.py             L4  composition root: constructs and wires
-│   ├── cli.py · local_api.py    L4  CLI · /api/* on 127.0.0.1:7070
-│   ├── tools/                       filesystem, shell, browser, documents, explorer
-│   ├── permissions/manager.py       policy checks on every tool call
-│   ├── brain/ · sync/               markdown vault + SQLite · one-way push
-│   └── main.py · executor.py        daemon · task dispatch
-└── ui/                              React + Tauri shell (.dmg/.AppImage/.exe)
-```
-
-The layer numbers are not decoration — they are enforced. `lint-imports` checks
-five contracts on every build, two of which assert that **neither the kernel nor
-the agent loop can import a provider SDK**. "Provider-agnostic" is a checked fact
-here, not an intention:
+What *is* finished is the spine: one agentic loop, provider-agnostic, with the
+layering enforced by CI rather than by convention.
 
 ```
 $ make contracts
@@ -310,104 +270,65 @@ L0 kernel imports no provider SDK                            KEPT
 L3 agent loop imports no provider SDK                        KEPT
 ```
 
-[`docs/design/architecture.md`](docs/design/architecture.md) describes the code as it is today.
-[`docs/design/sovereign-runtime.md`](docs/design/sovereign-runtime.md) is the
-design we are moving to — layers, the perimeter as a total mediator, the threat
-model, and what is deliberately not defended.
-[`docs/research/index.md`](docs/research/index.md) states what we are trying to prove.
+Two of those mean "provider-agnostic" is a fact that fails the build when broken.
 
-### Built on datapizza-ai
+## The trust boundary
 
-The execution core builds on
-[`datapizza-ai`](https://github.com/datapizza-labs/datapizza-ai) (MIT, Datapizza
-Labs) rather than on a fourth in-house agent framework. It supplies the canonical
-message vocabulary, provider adapters, tool schemas and the loop skeleton; local
-runtimes reach it through the `openai-like` client, which any OpenAI-compatible
-endpoint satisfies — Ollama, llama.cpp, vLLM.
+Annona is open source on purpose. It is the component that sees your material, so
+it must be the component you can audit — and replace.
 
-What this repository adds is the part that does not exist elsewhere: the
-perimeter (default-deny policy, classification, egress gate, fail-closed), local
-tool calling via constrained decoding, and a tamper-evident trace. The
-grammar-constrained clients are generally useful and carry no competitive value —
-we intend to upstream them.
-
-## Self-hosting the cloud side
-
-The Runner talks to three HTTP endpoints. Implement them and it will point at
-your infrastructure instead of ours:
-
-| Endpoint | Used for | Required |
+| | **Annona** (this repo, Apache-2.0) | **Agents Studio** (hosted, proprietary) |
 |---|---|---|
-| `GET /api/service1/api/v1/users/me` | Verify token | yes |
-| `POST /api/service3/api/v1/cloud/thoughts` | Receive pushed notes | yes |
-| `POST /api/service4/api/v1/runner/agent/turn` | Cloud LLM inference | no |
+| Decides *what* to do | no | yes — plans, versions, fleet |
+| Decides *whether it may*, and *where* | **yes, and it is the only one that does** | no |
+| Sees raw material | yes, and does not let it leave | never |
+| Runs where | your machine, your rack, your appliance | EU cloud |
 
-Set `AKAION_API_BASE`, use your own Firebase project (`FIREBASE_API_KEY`), done.
-Or set `ai.provider: local` and skip the third entirely.
+Point it at your own backend by implementing three endpoints — verify a token,
+receive pushed notes, optionally serve inference — or set `ai.provider: local`
+and skip the third entirely. Details in
+[the trust boundary section of the HLD](docs/design/hld.md#6-control-plane--data-plane-contract).
 
-## Research
+## Documentation
 
-The Runner is the reference implementation for work at **Akaion AI Lab** on
-*measurable sovereignty*: not "your data is safe" but a measured leak rate, a
-cost/privacy frontier, and a command you run yourself to check the claim.
+| | |
+|---|---|
+| [**High-level design**](docs/design/hld.md) | the design of record: components, placement algorithm, DGX appliance, threat model, metrics, acceptance run |
+| [Architecture as built](docs/design/architecture.md) | only the code that exists today |
+| [Sovereign runtime](docs/design/sovereign-runtime.md) | the threat model in full |
+| [Research](docs/research/index.md) | what we are trying to prove, and the numbers |
+| [Decisions](docs/adr/index.md) | why it is shaped this way, including the ones we reversed |
 
-Open questions, metrics, and results live in
-[`docs/research/index.md`](docs/research/index.md). Negative results are published there
-too.
-
-## Development
+## Contributing
 
 ```bash
-make setup            # venv + runtime + dev dependencies
 make check            # lint · types · contracts · tests — exactly what CI runs
-make test-cov         # coverage report
-make demo             # offline end-to-end run
 make docs-serve       # documentation at 127.0.0.1:8000
 make                  # list every target
 ```
 
-Individually:
-
-```bash
-make lint             # ruff
-make typecheck        # mypy — strict on runner/{kernel,capability,agent}
-make contracts        # lint-imports — the five architectural contracts
-./start.sh --dev            # verbose logging
-./start.sh --tauri-dev      # desktop shell against the live UI
-
-./scripts/build-sidecar.sh          # PyInstaller → ui/src-tauri/binaries/
-cd ui && npm run tauri build        # → .dmg / .AppImage / .exe
-```
-
-## Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). Apache 2.0
-([`LICENSE`](LICENSE), [`NOTICE`](NOTICE)). Security reports:
-[`SECURITY.md`](SECURITY.md).
-
-Two things worth knowing up front:
+Two things worth knowing before your first PR:
 
 - **Do not mock a vendor SDK in tests.** Use the `echo` backend and drive the loop
   through its ports — see `tests/test_agent_loop_unified.py`.
-- **If you change anything on the trust boundary** — permissions, sync, egress,
-  the audit trail — say in the PR description what a reviewer should check to
-  convince themselves the boundary still holds. Not "I tested it": what to look
-  at.
+- **If you touch the trust boundary** — permissions, placement, egress, the
+  ledger — say in the PR description what a reviewer should check to convince
+  themselves the boundary still holds. Not "I tested it": *what to look at*.
 
-The Firebase Web API key in `auth.py` and `ui/src/lib/firebase.ts` is the
-project's documented public default; Firebase Web SDK keys are designed to be
-client-visible.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md) ·
+[`CHANGELOG.md`](CHANGELOG.md)
 
-## Releases
+The Firebase Web API key in `auth.py` is the project's documented public default;
+Firebase Web SDK keys are designed to be client-visible.
 
-Tagged releases (`v*`) trigger
-[`.github/workflows/release.yml`](.github/workflows/release.yml): a 4-target
-matrix (macOS arm64, macOS x64, Linux x64, Windows x64) publishing a draft
-GitHub Release with all bundles attached. Promote draft → published manually
-after smoke testing.
+---
 
-## License
+<div align="center">
 
-Apache 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+**Annona** is built by [**Akaion AI Lab**](https://akaion.com) on
+[datapizza-ai](https://github.com/datapizza-labs/datapizza-ai) (MIT), because the
+world does not need a fourth agent framework — it needs the part underneath.
 
-Copyright 2026 Akaion.
+Apache 2.0 · [`LICENSE`](LICENSE) · [`NOTICE`](NOTICE) · Copyright 2026 Akaion
+
+</div>

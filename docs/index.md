@@ -6,44 +6,46 @@ hide:
 <div class="dg-hero" markdown="1">
 <span class="dg-hero__eyebrow">Akaion AI Lab · Apache-2.0</span>
 
-<h1 class="dg-hero__title">Do<span class="dg-hero__stamp">gana</span></h1>
+<h1 class="dg-hero__title">Ann<span class="dg-hero__stamp">ona</span></h1>
 
-<p class="dg-hero__tagline">Nothing crosses undeclared.</p>
+<p class="dg-hero__tagline">Where it runs is a decision.</p>
 
 <p class="dg-hero__sub">
-The perimeter for AI agents. Dogana runs agent plans inside your infrastructure,
-checks every tool call against your policy, and keeps a record of what left the
-building — and what did not.
+The sovereign execution kernel for AI agents. Annona takes a plan and, for every
+step, decides where it may run — your GPU, your cluster, or a frontier API —
+enforces the decision, executes it, and records it.
 </p>
 
-<p class="dg-hero__meta">doh-GAH-nah · Italian for <em>customs</em></p>
+<p class="dg-hero__meta">an-NO-na · Rome's grain administration — sourcing, routing, and the record of both</p>
 </div>
 
 ```bash
-git clone git@github.com:Akaion-repos/akaion-app-runner.git
-cd akaion-app-runner && make setup
+git clone git@github.com:Akaion-repos/annona.git
+cd annona && make setup
 make demo      # a real agentic run: no credentials, no network
 ```
 
-## Why a customs post
+## Why Rome kept its own grain
 
 Agentic AI asks organisations to hand their internal systems to a remote model.
 For a law firm, a clinic, or an engineering practice, that trade is not available
 — the data is privileged by law.
 
 The usual answers are *powerful but not sovereign* (cloud copilots) or *sovereign
-but useless* (a local chatbot with access to nothing). Dogana is the third
-option: the model may be remote, the **execution and the data are not**.
+but useless* (a local chatbot with access to nothing). Annona is the third
+option: the model may be remote, the **execution and the data are not** — and
+which of the two happens is decided per step, from policy, and written down.
 
-A border post is the whole idea. Goods crossing it are declared, checked against
-the rules, and either cleared or held — and a stamped record survives the
-crossing. So that is the vocabulary:
+The *cura annonae* was the office that kept Rome fed. It decided where grain was
+sourced, which route it took, which granary held it and who received it, and it
+kept the record — because a republic cannot outsource what it cannot live
+without. Compute is now that input, and that is the vocabulary:
 
 <div class="dg-terms" markdown="1">
-<div class="dg-term"><div class="dg-term__name">declaration</div><div class="dg-term__desc">what a step states it is about to send outward</div></div>
-<div class="dg-term"><div class="dg-term__name">clearance</div><div class="dg-term__desc">the gate's decision on a tool call or an egress</div></div>
-<div class="dg-term"><div class="dg-term__name">manifest</div><div class="dg-term__desc">the trace: a verifiable record of every crossing</div></div>
-<div class="dg-term"><div class="dg-term__name">held</div><div class="dg-term__desc">a call the policy refused</div></div>
+<div class="dg-term"><div class="dg-term__name">placement</div><div class="dg-term__desc">where a step runs: local GPU, private cluster, frontier API</div></div>
+<div class="dg-term"><div class="dg-term__name">clearance</div><div class="dg-term__desc">the decision on a tool call, an egress, or a placement</div></div>
+<div class="dg-term"><div class="dg-term__name">ledger</div><div class="dg-term__desc">the hash-chained record of every decision</div></div>
+<div class="dg-term"><div class="dg-term__name">held</div><div class="dg-term__desc">a call the policy refused — never quietly rerouted</div></div>
 </div>
 
 ## What a run looks like
@@ -88,6 +90,7 @@ implementing the documented three-endpoint contract.
 
 - **[Install](getting-started/install.md)** — native bundle or from source
 - **[Quickstart](getting-started/quickstart.md)** — first vault, first run
+- **[High-level design](design/hld.md)** — placement, the prefect, the DGX appliance
 - **[Architecture as built](design/architecture.md)** — what the code does today
 - **[Sovereign runtime](design/sovereign-runtime.md)** — where it is going, and the threat model
 - **[Research](research/index.md)** — what we are trying to prove, and what is not built
@@ -105,7 +108,8 @@ claim without a measurement is marketing.
 | Policy is default-allow — an unknown tool is permitted | <span class="dg-pill dg-pill--open">open</span> |
 | Nothing classifies or gates what leaves toward a model provider | <span class="dg-pill dg-pill--open">open</span> |
 | "Your data does not leave" is an argument, not a measured number | <span class="dg-pill dg-pill--open">open</span> |
-| The manifest is a log file, not a verifiable artefact | <span class="dg-pill dg-pill--open">open</span> |
+| The ledger is a log file, not a verifiable artefact | <span class="dg-pill dg-pill--open">open</span> |
+| Placement is a config line, not a per-step policy decision | <span class="dg-pill dg-pill--open">open</span> |
 | Fully local mode can talk, but not act | <span class="dg-pill dg-pill--open">open</span> |
 | One agentic loop, provider-agnostic, enforced in CI | <span class="dg-pill dg-pill--cleared">done</span> |
 | Both topologies covered end to end | <span class="dg-pill dg-pill--cleared">done</span> |
@@ -121,6 +125,6 @@ Each open item has a metric and a phase attached — see
 
 ---
 
-Dogana is developed by **[Akaion AI Lab](https://akaion.com)** and released under
+Annona is developed by **[Akaion AI Lab](https://akaion.com)** and released under
 Apache-2.0. It builds on [datapizza-ai](https://github.com/datapizza-labs/datapizza-ai)
 (MIT) — see [ADR 0001](adr/0001-adopt-datapizza-ai.md).

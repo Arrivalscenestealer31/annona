@@ -14,7 +14,8 @@ and the old one stays readable.
 | [0001](0001-adopt-datapizza-ai.md) | Adopt `datapizza-ai` as the agent vocabulary | Accepted |
 | [0002](0002-unify-the-agentic-loop.md) | Unify the agentic loop behind ports | Accepted |
 | [0003](0003-offline-echo-backend.md) | Ship an offline scripted backend in the product | Accepted |
-| [0004](0004-name-the-project-dogana.md) | Name the project Dogana | Accepted |
+| [0004](0004-name-the-project-dogana.md) | Name the project Dogana | Superseded by 0005 |
+| [0005](0005-name-the-project-annona.md) | Name the project Annona | Accepted |
 
 ## Writing one
 

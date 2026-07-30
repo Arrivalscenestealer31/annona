@@ -1,10 +1,10 @@
-site_name: Dogana
-site_description: Dogana — the perimeter for AI agents. Nothing crosses undeclared.
-site_url: https://akaion-repos.github.io/akaion-app-runner/
-repo_url: https://github.com/Akaion-repos/akaion-app-runner
-repo_name: Akaion-repos/akaion-app-runner
+site_name: Annona
+site_description: Annona — the sovereign execution kernel for AI agents. Where it runs is a decision.
+site_url: https://akaion-repos.github.io/annona/
+repo_url: https://github.com/Akaion-repos/annona
+repo_name: Akaion-repos/annona
 edit_uri: edit/main/docs/
-copyright: Dogana — an Akaion AI Lab project · Apache-2.0
+copyright: Annona — an Akaion AI Lab project · Apache-2.0
 
 docs_dir: docs
 site_dir: site
@@ -45,6 +45,7 @@ nav:
       - Quickstart: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
   - Design:
+      - High-level design: design/hld.md
       - Architecture as built: design/architecture.md
       - Sovereign runtime: design/sovereign-runtime.md
       - Local interface: design/ui.md
@@ -60,6 +61,7 @@ nav:
       - 0002 Unify the agentic loop: adr/0002-unify-the-agentic-loop.md
       - 0003 Ship an offline backend: adr/0003-offline-echo-backend.md
       - 0004 Name the project Dogana: adr/0004-name-the-project-dogana.md
+      - 0005 Name the project Annona: adr/0005-name-the-project-annona.md
   - Contributing: contributing.md
 
 extra_css:
@@ -74,7 +76,13 @@ markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.details
-  - pymdownx.superfences
+  # Mermaid: diagrams live in the markdown as source, so they diff and review
+  # like code, and render identically on GitHub and on the docs site.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite

@@ -6,14 +6,35 @@ Notable changes to this project. Format based on
 
 ## [Unreleased]
 
+### Renamed: Annona — a sovereign execution kernel
+
+The project is **Annona** — after the *cura annonae*, the office that kept Rome
+fed by deciding where grain was sourced, which route it took, which granary held
+it and who received it. It is described as a *sovereign execution kernel* rather
+than a perimeter, because the scope grew: it does not only refuse what an agent
+tries to do, it decides **where each step runs** — local GPU, private cluster,
+frontier API — enforces the decision and records it. See
+[ADR 0005](docs/adr/0005-name-the-project-annona.md), which supersedes 0004.
+
+New vocabulary: **placement**, **prefect** (the policy authority), **horreum**
+(the local store), **ration** (remote-capacity quota), **brief**, and **ledger**
+(was *manifest*, which now names only what a step may carry). **declaration**,
+**clearance**, **held** and **green lane** are unchanged.
+
+`annona` is the primary command; `dogana` and `akaion` stay as aliases. The
+PyPI distribution is now `annona`; the Python package stays `runner`.
+
+Added [`docs/design/hld.md`](docs/design/hld.md) — the design of record:
+component model, the step state machine, the placement algorithm and its policy
+file, two-tier reasoning via briefs, the DGX Spark appliance (arm64, memory
+bandwidth, what attestation does *not* buy on a GB10), the threat model, the
+metrics the design is judged by, and the laptop→DGX acceptance run.
+
 ### Named: Dogana
 
-The project has a name — *Dogana*, Italian for customs — and the vocabulary that
-comes with it: **declaration**, **clearance**, **manifest**, **held**. See
-[ADR 0004](docs/adr/0004-name-the-project-dogana.md).
-
-`dogana` is installed as an equal alias; `akaion` still works. The Python package
-stays `runner`.
+The project got its first name — *Dogana*, Italian for customs — and the
+vocabulary that came with it. Superseded by ADR 0005; the record stays in the
+tree. See [ADR 0004](docs/adr/0004-name-the-project-dogana.md).
 
 ### Fixed — two divergent CLIs
 

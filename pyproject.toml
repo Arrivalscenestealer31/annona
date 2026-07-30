@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "akaion-runner"
+name = "annona"
 version = "0.1.0"
-description = "Dogana — the perimeter for AI agents. Runs agent plans inside your infrastructure and records what left it."
+description = "Annona — the sovereign execution kernel for AI agents. Decides where each step runs, enforces it, and records it."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 authors = [{ name = "Akaion", email = "dev@akaion.com" }]
-keywords = ["dogana", "ai", "agents", "local-first", "sovereignty", "privacy", "llm", "egress"]
+keywords = ["annona", "ai", "agents", "sovereignty", "placement", "local-first", "privacy", "llm", "egress", "on-prem"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -85,15 +85,16 @@ docs = [
 ]
 
 [project.scripts]
-# The project is named Dogana; `akaion` stays for existing muscle memory.
-# Both point at the same app — see docs/adr/0004.
+# The project is named Annona; `dogana` and `akaion` stay for existing muscle
+# memory. All three point at the same app — see docs/adr/0005.
+annona = "runner.cli:app"
 dogana = "runner.cli:app"
 akaion = "runner.cli:app"
 
 [project.urls]
 Homepage = "https://akaion.com"
-Repository = "https://github.com/Akaion-repos/akaion-app-runner"
-Documentation = "https://github.com/Akaion-repos/akaion-app-runner/tree/main/docs"
+Repository = "https://github.com/Akaion-repos/annona"
+Documentation = "https://akaion-repos.github.io/annona/"
 
 [tool.setuptools.packages.find]
 include = ["runner*"]

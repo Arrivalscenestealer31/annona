@@ -1,6 +1,6 @@
 # Local interface — design
 
-Design document for the Runner's local UI. Status: **specification**. The current
+Design document for Annona's local UI. Status: **specification**. The current
 UI (`ui/`, React 19 + Tauri, ~1,200 lines across five views) is a working
 first pass; this describes what it should become and why, so the next change to
 it is deliberate rather than incremental.
@@ -15,7 +15,7 @@ it is deliberate rather than incremental.
 
 ## What this interface is for
 
-Not "a chat window with a file tree". The Runner is a perimeter, and the interface
+Not "a chat window with a file tree". Annona is a perimeter, and the interface
 has one job no other agent UI has:
 
 > **Make it visible what the agent did, what it was allowed to do, and what left

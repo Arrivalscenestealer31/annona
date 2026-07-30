@@ -1,6 +1,6 @@
 # Research
 
-The Runner is the reference implementation for work at **Akaion AI Lab** on one
+Annona is the reference implementation for work at **Akaion AI Lab** on one
 claim: *sovereignty should be measurable*.
 
 "Your data stays inside" is an architectural argument. Architectural arguments
@@ -112,7 +112,7 @@ properties are in tension. We will publish the generator and the tension.
 **Status:** not implemented. Low cost, high commercial return.
 
 The audit trail should not be a log file but a verifiable artifact: a hash chain,
-signed by the Runner's key, recording for each step the declared data
+signed by Annona's key, recording for each step the declared data
 classification and the egress ledger.
 
 Ship `akaion-verify` as an open tool that anyone runs over a trace and gets a

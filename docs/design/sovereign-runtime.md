@@ -1,6 +1,6 @@
 # Sovereign Agent Runtime — Design
 
-Design document for the Runner's execution core. Target state: **the agentic loop
+Design document for Annona's execution core. Target state: **the agentic loop
 runs inside the perimeter, and a model — local or remote — is an inference
 endpoint with no authority over control flow or egress.**
 

@@ -1,4 +1,4 @@
-# Akaion Runner - Installation Guide
+# Annona — installation guide
 
 ## 🚀 Quick Install (Recommended)
 
@@ -73,7 +73,7 @@ akaion version
 sudo apt update
 sudo apt install -y python3.10 python3-pip python3-venv git curl
 
-# Install Akaion Runner
+# Install Annona
 curl -fsSL https://install.akaion.com/runner.sh | bash
 
 # Reload shell
@@ -94,7 +94,7 @@ akaion run
 # Install prerequisites
 brew install python@3.11 git
 
-# Install Akaion Runner
+# Install Annona
 curl -fsSL https://install.akaion.com/runner.sh | bash
 
 # Reload shell
@@ -362,7 +362,7 @@ rm ~/.local/bin/akaion
 - [ ] `akaion` command available
 - [ ] Authentication successful
 - [ ] Configuration initialized
-- [ ] Runner starts without errors
+- [ ] Annona starts without errors
 - [ ] Can connect to cloud backend
 
 ---
