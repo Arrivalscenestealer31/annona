@@ -438,7 +438,23 @@ def write_default_policy(
     header = (
         "# Annona policy — what may run, where, and what may cross.\n"
         "# Every decision the perimeter takes is a function of this file.\n"
-        "# Reference: https://github.com/akaion-ai/annona/blob/main/docs/design/hld.md\n\n"
+        "# Reference: https://github.com/akaion-ai/annona/blob/main/docs/design/hld.md\n"
+        "#\n"
+        "# Tools are default-deny: one that is not named below does not run. The\n"
+        "# runner ships five — filesystem, shell, browser, document_reader,\n"
+        "# explorer — and this file enables the three that only read. Add the\n"
+        "# others deliberately, with paths, and know what you are doing:\n"
+        "#\n"
+        "#   tools:\n"
+        "#     allow:\n"
+        "#       shell:   []          # no path allow-list means the tool is refused;\n"
+        "#                            # shell has no path argument, so enabling it is\n"
+        "#                            # an all-or-nothing decision. Prefer not to.\n"
+        "#       browser: []          # the browser reaches the network, which is an\n"
+        "#                            # egress this policy cannot classify. Phase 2.\n"
+        "#\n"
+        "# To send material to a model outside this machine, add a substrate and a\n"
+        "# rule that allows it. Nothing here does, on purpose.\n\n"
     )
     body = yaml.safe_dump(
         default_policy_document(local_endpoint=local_endpoint, local_model=local_model),

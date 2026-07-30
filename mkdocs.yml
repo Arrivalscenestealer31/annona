@@ -49,6 +49,7 @@ nav:
       - Architecture as built: design/architecture.md
       - Sovereign runtime: design/sovereign-runtime.md
       - Local interface: design/ui.md
+  - Casi d'uso (IT): casi-duso.md
   - Research:
       - research/index.md
   - Reference:

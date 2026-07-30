@@ -16,7 +16,7 @@
 ![placement](https://img.shields.io/badge/placement-per_step-informational?style=flat-square)
 ![leak rate](https://img.shields.io/badge/leak_rate-0-success?style=flat-square)
 ![ledger](https://img.shields.io/badge/ledger-hash--chained-success?style=flat-square)
-![tests](https://img.shields.io/badge/tests-516_passing-brightgreen?style=flat-square)
+![tests](https://img.shields.io/badge/tests-523_passing-brightgreen?style=flat-square)
 ![arch](https://img.shields.io/badge/arm64-+_amd64-lightgrey?style=flat-square)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)
 
@@ -166,6 +166,25 @@ Now ask the same question about a public tender document. Steps 1 and 3 are
 placed on the frontier model, the answer is better, and it costs a tenth as much.
 
 **Same code. Same plan. Different policy verdict.** That is the product.
+
+## What it can actually do
+
+The kernel decides placement; these are the things it places. All of it predates
+the perimeter and none of it was dropped — what changed is that a tool the policy
+does not name no longer runs.
+
+| | |
+|---|---|
+| **Tools** | `document_reader` (PDF, DOCX, XLSX, CSV, source), `explorer`, `filesystem`, `shell`, `browser` — default-deny, per tool, per path |
+| **Local vault** | every note a markdown file under `~/akaion-brain/`, indexed in SQLite: greppable, diffable, yours if you walk away |
+| **Cloud sync** | one-way, opt-in, per note. `cloud.enabled: false` is the shipped default |
+| **Desktop app** | Tauri shell for macOS, Windows and Linux over the same daemon |
+| **Substrates** | Ollama, vLLM and any OpenAI-compatible `/v1`, Anthropic, a scripted offline backend |
+
+The shipped policy enables the three read-only tools. `shell` and `browser` are
+left off on purpose and the template says why: a shell has no path argument, so
+enabling it is an all-or-nothing decision, and a browser reaches the network,
+which is an egress this policy cannot yet classify.
 
 ## Working with the Italian open-source stack
 
@@ -432,6 +451,7 @@ and skip the third entirely. Details in
 | [Sovereign runtime](docs/design/sovereign-runtime.md) | the threat model in full |
 | [Research](docs/research/index.md) | what we are trying to prove, and the numbers |
 | [Decisions](docs/adr/index.md) | why it is shaped this way, including the ones we reversed |
+| [Casi d'uso](docs/casi-duso.md) 🇮🇹 | the one-pager for the Italian market: what it solves, for whom, and the test behind each claim |
 
 ## Contributing
 

@@ -197,14 +197,23 @@ class RoutingBackend:
         one in an outbound payload is not a signal to think about, it is a stop.
         """
         payload = self._render(request)
-        klass = max(self._working_set.klass, self._classifier.classify_text(payload))
 
         for canary in self._policy.egress.canaries:
             if canary and canary in payload:
                 self._working_set.observe("canary in outbound payload", SensitivityClass.RESTRICTED)
                 return SensitivityClass.RESTRICTED
 
-        return klass
+        from_payload = self._classifier.classify_text(payload)
+        if from_payload > self._working_set.klass:
+            # Folded into the working set, not just used for this turn. A prompt
+            # that names a client file makes the *run* sensitive, and a later
+            # turn whose payload happens not to mention it must not become
+            # placeable on a frontier model — which is exactly what would happen
+            # if a transcript were trimmed or summarised. Monotone means
+            # monotone.
+            self._working_set.observe("payload", from_payload)
+
+        return self._working_set.klass
 
     @staticmethod
     def _render(request: CompletionRequest) -> str:
