@@ -303,6 +303,9 @@ class Requirement:
     min_context: int = 0
     """Minimum usable context window, in tokens. ``0`` means "do not care"."""
 
+    vision: bool = False
+    """The step carries images, so the substrate must be able to read them."""
+
 
 @dataclass(frozen=True, slots=True)
 class Placement:

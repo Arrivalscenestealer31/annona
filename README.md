@@ -16,7 +16,7 @@
 ![placement](https://img.shields.io/badge/placement-per_step-informational?style=flat-square)
 ![leak rate](https://img.shields.io/badge/leak_rate-0-success?style=flat-square)
 ![ledger](https://img.shields.io/badge/ledger-hash--chained-success?style=flat-square)
-![tests](https://img.shields.io/badge/tests-523_passing-brightgreen?style=flat-square)
+![tests](https://img.shields.io/badge/tests-549_passing-brightgreen?style=flat-square)
 ![arch](https://img.shields.io/badge/arm64-+_amd64-lightgrey?style=flat-square)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)
 
@@ -185,6 +185,59 @@ The shipped policy enables the three read-only tools. `shell` and `browser` are
 left off on purpose and the template says why: a shell has no path argument, so
 enabling it is an all-or-nothing decision, and a browser reaches the network,
 which is an egress this policy cannot yet classify.
+
+## Skills, with a jurisdiction
+
+A skill is what [Anthropic's Agent Skills](https://www.anthropic.com/news/skills)
+are — a folder with a `SKILL.md`, front matter plus prose, loaded only when the
+model asks for it. Same format on purpose: a skill written for one runtime still
+works in the other.
+
+Annona adds one field, and it is the only interesting part:
+
+```yaml
+---
+name: image-report
+description: Read one or more images and produce a structured, factual report.
+requires: [vision]
+tools: [document_reader, explorer]
+pins: local          # ← the run is confined the moment this is loaded
+---
+```
+
+`pins: local` is enforced by the kernel, not by a sentence at the bottom of the
+instruction asking nicely. The moment the model loads that skill the working set
+is restricted, and no later turn can be placed on a frontier API — whatever the
+prompt looks like by then. **That is the difference between a prompt library and
+a capability system.**
+
+The shipped set is deliberately generic in name and specific in effect:
+
+| Skill | What it does | Pinned |
+|---|---|---|
+| `image-report` | reads images and produces structured observations with explicit uncertainty and limits — radiology, damage claims, site photos, identity documents | local, needs vision |
+| `document-triage` | sorts a folder by document type, extracts identifying fields, flags what needs a human | local |
+| `case-timeline` | builds a dated chronology from a folder, with a source per line and conflicts named | local |
+| `bulk-extract` | the same fields out of many documents into one table, misses reported rather than invented | local |
+| `evidence-pack` | an answer plus everything needed to audit how it was reached | local |
+| `redact-and-ask` | restates a question so it can be answered without the identifiers, then applies the answer here | — |
+| `second-opinion` | answers, then attacks its own answer and reports where the two disagree | — |
+
+```bash
+annona skills                      # installed · allowed · usable here
+annona skills --show image-report  # read the instruction yourself
+```
+
+Skills are **default-deny** like tools: one that the policy does not name is
+never offered, and asking for a disabled skill is answered exactly like asking
+for one that does not exist. Your own live in `~/.annona/skills/` and override
+the shipped ones by name, so a practice can encode its house style without
+forking anything.
+
+> `image-report` produces observations for a professional to interpret. It is not
+> a diagnostic device, it does not conclude, and the instruction says so to the
+> model as well as to you — software intended for diagnosis is regulated as a
+> medical device, and calling it something else does not change that.
 
 ## Working with the Italian open-source stack
 

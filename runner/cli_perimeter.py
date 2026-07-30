@@ -205,6 +205,62 @@ def substrates(
     console.print(table)
 
 
+def skills(
+    path: Path = typer.Option(None, "--path", "-p", help="Policy file"),
+    show: str = typer.Option("", "--show", "-s", help="Print one skill's instructions"),
+):
+    """🧩 Skills: what is installed, what the policy allows, what can run here."""
+    from runner.skills.loader import discover_skills, skills_dirs
+    from runner.skills.registry import SkillRegistry
+
+    policy, _ = _load(path)
+    installed = discover_skills()
+
+    if show:
+        skill = installed.get(show)
+        if skill is None:
+            console.print(f"❌ [red]no skill named {show!r}[/red]")
+            raise typer.Exit(1)
+        console.print(f"\n[bold]{skill.name}[/bold] · v{skill.version} · {skill.source}\n")
+        console.print(escape(skill.body))
+        raise typer.Exit(0)
+
+    registry = SkillRegistry(
+        installed,
+        allowed=policy.skills.allow,
+        vision=any(s.vision for s in policy.substrates),
+        allowed_tools=tuple(policy.tools.allow),
+        context_window=max((s.context_window for s in policy.substrates), default=0),
+    )
+    usable = {s.name for s in registry.available()}
+    blocked = dict(registry.unusable())
+
+    table = Table(title="Skills")
+    table.add_column("skill", style="cyan")
+    table.add_column("state")
+    table.add_column("pins")
+    table.add_column("what it does", overflow="fold")
+
+    for name in sorted(installed):
+        skill = installed[name]
+        if name in usable:
+            state = "[green]available[/green]"
+        elif name in blocked:
+            state = "[yellow]blocked[/yellow]"
+        else:
+            state = "[dim]not allowed[/dim]"
+        detail = blocked.get(name) or skill.description
+        pins = "[magenta]local only[/magenta]" if skill.pins_local else "—"
+        table.add_row(name, state, pins, escape(detail))
+
+    console.print(table)
+    console.print(f"\n[dim]searched: {' · '.join(str(d) for d in skills_dirs())}[/dim]")
+    console.print(
+        "[dim]a skill the policy does not name is never offered to a model; "
+        "one that pins local confines the run to your perimeter.[/dim]"
+    )
+
+
 def why(
     step_id: str = typer.Argument(..., help="Step id, as printed by a run or by `annona audit`"),
     ledger: Path = typer.Option(None, "--ledger", "-l", help="Ledger file"),
@@ -312,6 +368,7 @@ def register(app: typer.Typer) -> None:
     """
     app.add_typer(policy_app)
     app.command("substrates")(substrates)
+    app.command("skills")(skills)
     app.command("why")(why)
     app.command("verify")(verify)
     app.command("audit")(audit)

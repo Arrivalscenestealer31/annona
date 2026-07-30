@@ -43,6 +43,7 @@ __all__ = [
     "Policy",
     "Prefer",
     "Rule",
+    "SkillPolicy",
     "Substrate",
     "ToolPolicy",
     "Unavailable",
@@ -136,6 +137,7 @@ class Substrate:
     model: str = ""
     attestation: str = ""
     tools: bool = True
+    vision: bool = False
     context_window: int = 0
     cost_per_mtok: float = 0.0
     quality: int = 50
@@ -221,6 +223,21 @@ class ToolPolicy:
 
 
 @dataclass(frozen=True, slots=True)
+class SkillPolicy:
+    """Which skills may be offered to a model.
+
+    Default-deny. A skill is an instruction the model will follow and, when it
+    declares ``pins: local``, a constraint the kernel will enforce for the rest
+    of the run — both are decisions, and decisions are named in the policy.
+    """
+
+    allow: tuple[str, ...] = ()
+
+    def permits(self, name: str) -> bool:
+        return name in self.allow
+
+
+@dataclass(frozen=True, slots=True)
 class Policy:
     """A complete, validated policy document."""
 
@@ -231,6 +248,7 @@ class Policy:
     egress: EgressPolicy
     tools: ToolPolicy
     redaction: RedactionPolicy = field(default_factory=RedactionPolicy)
+    skills: SkillPolicy = field(default_factory=SkillPolicy)
     source: str = "<memory>"
 
     # ── Lookups ───────────────────────────────────────────────────────────────

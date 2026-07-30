@@ -149,6 +149,10 @@ class PlacementDecisionEngine:
                 rejected.append((sid, "does not support tool use"))
                 continue
 
+            if requirement.vision and not substrate.vision:
+                rejected.append((sid, "cannot read images"))
+                continue
+
             if (
                 requirement.min_context
                 and substrate.context_window

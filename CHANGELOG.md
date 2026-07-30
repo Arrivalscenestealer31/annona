@@ -6,6 +6,37 @@ Notable changes to this project. Format based on
 
 ## [Unreleased]
 
+### Skills, with a jurisdiction
+
+Anthropic's Agent Skills format — a folder with `SKILL.md`, front matter plus
+prose, disclosed progressively — plus one field the kernel enforces:
+
+    pins: local
+
+Loading a skill that declares it raises the working set *before* the instruction
+is handed over, so the rest of the run cannot be placed outside the perimeter,
+whatever the prompt looks like by then. A prompt library asks; a capability
+system decides. Everything else about the format is deliberately identical, so a
+skill written for one runtime is not wasted on the other.
+
+Seven ship, generic in name and specific in effect: `image-report` (structured
+visual reading with explicit limits — radiology, damage, site photos, identity
+documents), `document-triage`, `case-timeline`, `bulk-extract`, `evidence-pack`,
+all pinned local; `redact-and-ask` and `second-opinion`, which touch nothing and
+are not.
+
+Skills are default-deny like tools, validated at load time like policies, and
+asking for a disabled one is answered exactly like asking for one that does not
+exist — a model must not be able to enumerate what an operator chose not to
+enable. Bodies are classified by the tracker like any other material entering a
+transcript, so an instruction file carrying an identifier raises the class of
+the run rather than sneaking in under the classifier.
+
+`annona skills` lists what is installed, allowed and usable here, and
+`--show` prints an instruction so an operator can read what their model is
+being told. Substrates gained a `vision` flag; a skill requiring it is not
+offered where nothing can read an image.
+
 ### Redaction: a fourth answer, and a mascot
 
 `on_unavailable: redact`. When a step is too sensitive for every available

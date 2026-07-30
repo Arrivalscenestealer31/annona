@@ -25,6 +25,7 @@ from runner.policy.models import (
     EgressPolicy,
     Policy,
     Rule,
+    SkillPolicy,
     Substrate,
     ToolPolicy,
 )
@@ -110,6 +111,7 @@ def _parse_substrates(raw: Sequence[Any]) -> tuple[Substrate, ...]:
                 model=str(body.get("model", "")),
                 attestation=str(body.get("attestation", "")),
                 tools=bool(body.get("tools", True)),
+                vision=bool(body.get("vision", False)),
                 context_window=int(body.get("context_window", 0)),
                 cost_per_mtok=float(body.get("cost_per_mtok", 0.0)),
                 quality=int(body.get("quality", 50)),
@@ -191,6 +193,21 @@ def _parse_egress(raw: Mapping[str, Any], known: set[str]) -> EgressPolicy:
         allowed_for=allowed,
         canaries=tuple(str(c) for c in _require_sequence(raw.get("canaries"), "egress.canaries")),
     )
+
+
+def _parse_skills(raw: Any) -> SkillPolicy:
+    """Parse the ``skills:`` allow-list.
+
+    Default-deny, like tools: a skill that is not named here is not offered to
+    the model, however many SKILL.md files are sitting on disk. Capabilities
+    that appear because a file was copied into a directory are not capabilities
+    anyone decided to have.
+    """
+    if raw is None:
+        return SkillPolicy()
+    if isinstance(raw, Mapping):
+        raw = raw.get("allow")
+    return SkillPolicy(allow=tuple(str(name) for name in _require_sequence(raw, "skills")))
 
 
 def _parse_redaction(raw: Mapping[str, Any]) -> RedactionPolicy:
@@ -277,6 +294,7 @@ def parse_policy(document: Mapping[str, Any], *, source: str = "<memory>") -> Po
     egress = _parse_egress(_require_mapping(document.get("egress"), "egress"), known)
     tools = _parse_tools(_require_mapping(document.get("tools"), "tools"))
     redaction = _parse_redaction(_require_mapping(document.get("redaction"), "redaction"))
+    skills = _parse_skills(document.get("skills"))
 
     policy = Policy(
         version=int(document.get("version", 1)),
@@ -286,6 +304,7 @@ def parse_policy(document: Mapping[str, Any], *, source: str = "<memory>") -> Po
         egress=egress,
         tools=tools,
         redaction=redaction,
+        skills=skills,
         source=source,
     )
 

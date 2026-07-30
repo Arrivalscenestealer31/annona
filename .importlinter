@@ -110,6 +110,22 @@ forbidden_modules =
     runner.brain
     runner.sync
 
+; Skills are instructions plus a jurisdiction. They may depend on the decision
+; layers, and must not be able to reach an adapter — a skill that could import a
+; backend would be a capability that bypasses placement.
+[importlinter:contract:skills-know-no-adapters]
+name = L2 skills cannot reach an L1 adapter
+type = forbidden
+source_modules =
+    runner.skills
+forbidden_modules =
+    runner.capability
+    runner.agent
+    runner.tools
+    anthropic
+    openai
+    httpx
+
 [importlinter:contract:perimeter-has-no-vendors]
 name = L2 imports no provider SDK
 type = forbidden

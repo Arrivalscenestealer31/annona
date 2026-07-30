@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +41,9 @@ from runner.policy.loader import default_policy, load_policy
 from runner.policy.models import Policy, Substrate
 from runner.policy.redaction import Redactor
 from runner.policy.tracking import TrackingExecutor
+from runner.skills.loader import discover_skills
+from runner.skills.models import Skill
+from runner.skills.registry import SkillfulExecutor, SkillRegistry
 
 __all__ = ["Enforcement", "build_backend", "build_redactor", "policy_path"]
 
@@ -182,6 +185,7 @@ class Enforcement:
     ledger: Ledger
     backends: Mapping[str, Any]
     redactor: Redactor | None = None
+    skills: Mapping[str, Skill] = field(default_factory=dict)
 
     # ── Construction ──────────────────────────────────────────────────────────
 
@@ -194,6 +198,7 @@ class Enforcement:
         ledger_path: str | Path | None = None,
         backends: Mapping[str, Any] | None = None,
         redactor: Redactor | None = None,
+        skills: Mapping[str, Skill] | None = None,
         run_id: str | None = None,
         probe: bool = True,
         fsync: bool = True,
@@ -245,6 +250,12 @@ class Enforcement:
         if redactor is None:
             redactor = build_redactor(policy)
 
+        if skills is None:
+            # Discovered even when the policy allows none: `annona skills` has to
+            # be able to say "this exists and you have not enabled it", which is
+            # a different sentence from "this does not exist".
+            skills = discover_skills() if policy.skills.allow else {}
+
         return cls(
             policy=policy,
             classifier=classifier,
@@ -254,6 +265,7 @@ class Enforcement:
             ledger=ledger,
             backends=dict(backends),
             redactor=redactor,
+            skills=dict(skills),
         )
 
     # ── The three adapters the loop consumes ──────────────────────────────────
@@ -263,8 +275,25 @@ class Enforcement:
         return DefaultDenyGate(self.policy, self.classifier, self.working_set, self.ledger)
 
     def executor(self, inner: Any) -> TrackingExecutor:
-        """The real executor, wrapped so results taint the working set."""
-        return TrackingExecutor(inner, self.classifier, self.working_set, self.ledger)
+        """The real executor, wrapped twice.
+
+        Innermost the real tools; then the skill loader, which adds one tool and
+        enforces what loading a skill implies; then the tracker, which classifies
+        everything that comes back. Order matters: a skill body is material
+        entering the transcript like any other, so the tracker has to see it too.
+        """
+        with_skills = SkillfulExecutor(inner, self.skill_registry(), self.working_set, self.ledger)
+        return TrackingExecutor(with_skills, self.classifier, self.working_set, self.ledger)
+
+    def skill_registry(self) -> SkillRegistry:
+        """Skills this policy permits and this deployment can actually run."""
+        return SkillRegistry(
+            self.skills,
+            allowed=self.policy.skills.allow,
+            vision=any(s.vision for s in self.policy.substrates),
+            allowed_tools=tuple(self.policy.tools.allow),
+            context_window=max((s.context_window for s in self.policy.substrates), default=0),
+        )
 
     def backend(self) -> RoutingBackend:
         """The backend that places every turn before it is served."""
@@ -301,6 +330,7 @@ class Enforcement:
                 for sid, health in self.registry.snapshot().items()
             },
             "redactor": self.redactor.name if self.redactor else "none",
+            "skills": [s.name for s in self.skill_registry().available()],
             "ledger": {
                 "path": str(self.ledger.path),
                 "head": self.ledger.head[:16],
