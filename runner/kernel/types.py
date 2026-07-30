@@ -267,7 +267,7 @@ class SensitivityClass(IntEnum):
         raise ValueError(f"unknown sensitivity class: {value!r}")
 
 
-Outcome = Literal["cleared", "held", "placed", "queued", "briefed"]
+Outcome = Literal["cleared", "held", "placed", "queued", "briefed", "redacted"]
 """What the perimeter decided. ``held`` is a first-class result, not an error."""
 
 
@@ -327,7 +327,7 @@ class Placement:
     @property
     def permitted(self) -> bool:
         """Whether the step may proceed on :attr:`substrate`."""
-        return self.outcome in ("placed", "briefed")
+        return self.outcome in ("placed", "briefed", "redacted")
 
 
 # ── Run result ────────────────────────────────────────────────────────────────

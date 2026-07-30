@@ -211,6 +211,28 @@ class PlacementDecisionEngine:
                 rejected=rejected,
             )
 
+        if rule.on_unavailable == "redact":
+            redaction = self._policy.redaction
+            if not redaction.enabled:
+                return Placement(
+                    outcome="held",
+                    klass=klass,
+                    rule_id=rule.id,
+                    reason="the rule asks for redaction and no redactor is configured",
+                    rejected=rejected,
+                )
+            return Placement(
+                outcome="redacted",
+                klass=klass,
+                rule_id=rule.id,
+                reason=(
+                    f"no permitted substrate is available; {redaction.provider} will "
+                    "replace the identifiers, and the result is reclassified before it "
+                    "may cross"
+                ),
+                rejected=rejected,
+            )
+
         if rule.on_unavailable == "brief":
             egress = self._policy.egress
             producer = self._registry.get(egress.brief_produced_by)

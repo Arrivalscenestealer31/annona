@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Literal
 
 from runner.kernel.types import SensitivityClass
+from runner.policy.redaction import RedactionPolicy
 
 __all__ = [
     "ClassSpec",
@@ -49,7 +50,7 @@ __all__ = [
     "normalise_path",
 ]
 
-Unavailable = Literal["hold", "queue", "brief"]
+Unavailable = Literal["hold", "queue", "brief", "redact"]
 Prefer = Literal["privacy", "cost", "latency", "quality"]
 
 _JURISDICTION_DISTANCE: Mapping[str, int] = {
@@ -229,6 +230,7 @@ class Policy:
     rules: tuple[Rule, ...]
     egress: EgressPolicy
     tools: ToolPolicy
+    redaction: RedactionPolicy = field(default_factory=RedactionPolicy)
     source: str = "<memory>"
 
     # ── Lookups ───────────────────────────────────────────────────────────────

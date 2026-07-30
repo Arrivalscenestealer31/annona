@@ -39,9 +39,10 @@ from runner.policy.classifier import PolicyClassifier, WorkingSet
 from runner.policy.gate import DefaultDenyGate
 from runner.policy.loader import default_policy, load_policy
 from runner.policy.models import Policy, Substrate
+from runner.policy.redaction import Redactor
 from runner.policy.tracking import TrackingExecutor
 
-__all__ = ["Enforcement", "build_backend", "policy_path"]
+__all__ = ["Enforcement", "build_backend", "build_redactor", "policy_path"]
 
 
 def policy_path(home: str | Path | None = None) -> Path:
@@ -129,6 +130,41 @@ def build_backend(substrate: Substrate, *, secrets: Mapping[str, str] | None = N
     )
 
 
+def build_redactor(policy: Policy) -> Redactor | None:
+    """Construct the redactor a policy asks for, or ``None``.
+
+    Kept beside :func:`build_backend` because it is the same kind of decision:
+    the policy names a provider, and this is the one place that knows which
+    adapter that name means.
+
+    Raises:
+        ConfigurationError: the policy names a provider this build does not
+            have. Failing here is the point — a deployment whose redactor
+            silently did not exist would send material it believed was clean.
+    """
+    redaction = policy.redaction
+    if not redaction.enabled:
+        return None
+
+    provider = redaction.provider.lower()
+    if provider in ("rizzo-pii", "rizzo_pii", "rizzo"):
+        # Imported lazily: the adapter needs an HTTP client, and a policy with
+        # no redactor must not pay for it.
+        from runner.capability.redactors.rizzo_pii import (  # noqa: PLC0415
+            DEFAULT_ENDPOINT,
+            RizzoPiiRedactor,
+        )
+
+        return RizzoPiiRedactor(
+            endpoint=redaction.endpoint or DEFAULT_ENDPOINT,
+            timeout=redaction.timeout,
+        )
+
+    raise ConfigurationError(
+        f"redaction.provider {redaction.provider!r} is unknown; supported: rizzo-pii"
+    )
+
+
 @dataclass
 class Enforcement:
     """The perimeter, assembled: policy, classification, placement, record.
@@ -145,6 +181,7 @@ class Enforcement:
     engine: PlacementDecisionEngine
     ledger: Ledger
     backends: Mapping[str, Any]
+    redactor: Redactor | None = None
 
     # ── Construction ──────────────────────────────────────────────────────────
 
@@ -156,6 +193,7 @@ class Enforcement:
         policy_file: str | Path | None = None,
         ledger_path: str | Path | None = None,
         backends: Mapping[str, Any] | None = None,
+        redactor: Redactor | None = None,
         run_id: str | None = None,
         probe: bool = True,
         fsync: bool = True,
@@ -204,6 +242,9 @@ class Enforcement:
         if backends is None:
             backends = {s.id: build_backend(s, secrets=secrets) for s in policy.substrates}
 
+        if redactor is None:
+            redactor = build_redactor(policy)
+
         return cls(
             policy=policy,
             classifier=classifier,
@@ -212,6 +253,7 @@ class Enforcement:
             engine=engine,
             ledger=ledger,
             backends=dict(backends),
+            redactor=redactor,
         )
 
     # ── The three adapters the loop consumes ──────────────────────────────────
@@ -234,6 +276,7 @@ class Enforcement:
             classifier=self.classifier,
             working_set=self.working_set,
             ledger=self.ledger,
+            redactor=self.redactor,
         )
 
     # ── Reporting ─────────────────────────────────────────────────────────────
@@ -257,6 +300,7 @@ class Enforcement:
                 }
                 for sid, health in self.registry.snapshot().items()
             },
+            "redactor": self.redactor.name if self.redactor else "none",
             "ledger": {
                 "path": str(self.ledger.path),
                 "head": self.ledger.head[:16],

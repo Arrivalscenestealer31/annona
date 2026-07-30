@@ -40,12 +40,14 @@ from runner.kernel.types import (
     Placement,
     Requirement,
     SensitivityClass,
+    ToolCall,
     Turn,
 )
 from runner.placement.engine import PlacementDecisionEngine
 from runner.placement.registry import SubstrateRegistry
 from runner.policy.classifier import PolicyClassifier, WorkingSet
 from runner.policy.models import Policy
+from runner.policy.redaction import Redaction, Redactor, class_for_labels, restore
 
 __all__ = ["BRIEF_SYSTEM_PROMPT", "RoutingBackend"]
 
@@ -91,6 +93,7 @@ class RoutingBackend:
         classifier: PolicyClassifier,
         working_set: WorkingSet,
         ledger: Ledger | None = None,
+        redactor: Redactor | None = None,
     ) -> None:
         self._policy = policy
         self._engine = engine
@@ -99,7 +102,9 @@ class RoutingBackend:
         self._classifier = classifier
         self._working_set = working_set
         self._ledger = ledger
+        self._redactor = redactor
         self._last_placement: Placement | None = None
+        self._last_redaction: Redaction | None = None
 
     # ── Port ──────────────────────────────────────────────────────────────────
 
@@ -149,6 +154,9 @@ class RoutingBackend:
 
             if placement.outcome == "briefed":
                 return self._complete_via_brief(request, placement, requirement)
+
+            if placement.outcome == "redacted":
+                return self._complete_via_redaction(request, placement, requirement)
 
             if not placement.permitted:
                 self._record(placement, request, kind="inference")
@@ -327,6 +335,160 @@ class RoutingBackend:
         )
         return self._call(onward.substrate, briefed_request)
 
+    def _complete_via_redaction(
+        self,
+        request: CompletionRequest,
+        placement: Placement,
+        requirement: Requirement,
+    ) -> Completion:
+        """Replace the identifiers locally, send the rest, put them back after.
+
+        The sequence is the whole point, and every step of it is a control:
+
+        1. a local model finds the identifiers and returns the text without
+           them, plus the mapping — which never leaves this process;
+        2. the redacted text is **reclassified from scratch**. A redactor that
+           missed something produces text that merely looks safe, so its output
+           is treated as freshly arrived material rather than as a promise;
+        3. only then is placement recomputed, against the lower class;
+        4. the answer comes back with placeholders in it, and is re-identified
+           here. If the model invented a placeholder nobody can resolve, that is
+           recorded rather than shipped as if it were a name.
+
+        Pseudonymous is not anonymous: the mapping exists, so this reduces
+        exposure rather than removing it. That distinction belongs in the
+        conversation with a DPO, and it is why the ledger records that a
+        redaction happened, how many identifiers of which kinds, and nothing
+        else.
+        """
+        if self._redactor is None:  # pragma: no cover - the loader refuses this
+            held = Placement(
+                outcome="held",
+                klass=placement.klass,
+                rule_id=placement.rule_id,
+                reason="the rule asks for redaction and no redactor is wired",
+            )
+            self._last_placement = held
+            self._record(held, request, kind="egress")
+            raise PlacementHeldError(held.reason, held)
+
+        payload = self._render(request)
+
+        try:
+            redaction = self._redactor.analyse(payload)
+        except BackendUnavailableError as exc:
+            if self._policy.redaction.fails_closed:
+                held = Placement(
+                    outcome="held",
+                    klass=placement.klass,
+                    rule_id=placement.rule_id,
+                    reason=f"the redactor is unavailable and the policy holds on error: {exc}",
+                )
+                self._last_placement = held
+                self._record(held, request, kind="egress")
+                raise PlacementHeldError(held.reason, held) from exc
+            raise
+
+        self._last_redaction = redaction
+
+        redacted_class = max(
+            self._classifier.classify_text(redaction.text),
+            class_for_labels({}, self._policy.redaction),
+        )
+        for canary in self._policy.egress.canaries:
+            if canary and canary in redaction.text:
+                redacted_class = SensitivityClass.RESTRICTED
+
+        if redacted_class >= placement.klass:
+            held = Placement(
+                outcome="held",
+                klass=redacted_class,
+                rule_id=placement.rule_id,
+                reason=(
+                    f"after redaction the payload is still {redacted_class.label}; "
+                    f"{redaction.count} identifier(s) were replaced and something "
+                    "sensitive remains"
+                ),
+            )
+            self._last_placement = held
+            self._record(held, request, kind="egress", payload=redaction.text)
+            raise PlacementHeldError(held.reason, held)
+
+        onward = self._engine.place(redacted_class, requirement)
+        if not onward.permitted or onward.outcome != "placed":
+            held = Placement(
+                outcome="held",
+                klass=redacted_class,
+                rule_id=onward.rule_id,
+                reason="the redacted payload has nowhere permitted to go either",
+                rejected=onward.rejected,
+            )
+            self._last_placement = held
+            self._record(held, request, kind="egress", payload=redaction.text)
+            raise PlacementHeldError(held.reason, held)
+
+        cleared, why = self._engine.clears_egress(redacted_class, onward.substrate)
+        if not cleared:  # pragma: no cover - defence in depth
+            held = Placement(outcome="held", klass=redacted_class, reason=why)
+            self._last_placement = held
+            self._record(held, request, kind="egress", payload=redaction.text)
+            raise PlacementHeldError(why, held)
+
+        crossing = Placement(
+            outcome="redacted",
+            klass=redacted_class,
+            substrate=onward.substrate,
+            rule_id=onward.rule_id,
+            reason=(
+                f"{redaction.count} identifier(s) replaced by {self._redactor.name}; "
+                f"reclassified {redacted_class.label} and cleared for {onward.substrate}"
+            ),
+            candidates=onward.candidates,
+        )
+        self._last_placement = crossing
+        self._record(
+            crossing,
+            request,
+            kind="egress",
+            payload=redaction.text,
+            extra={"redacted": redaction.summary(), "redactor": self._redactor.name},
+        )
+
+        redacted_request = CompletionRequest(
+            system=request.system,
+            transcript=(Turn(role="user", blocks=(text_block(redaction.text),)),),
+            tools=request.tools,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            model=request.model,
+        )
+        completion = self._call(onward.substrate, redacted_request)
+
+        return self._reidentify(completion, redaction)
+
+    def _reidentify(self, completion: Completion, redaction: Redaction) -> Completion:
+        """Put the real values back into the answer, here and nowhere else."""
+        if not redaction.mapping:
+            return completion
+
+        restored = tuple(restore(part, redaction.mapping) for part in completion.text_parts)
+        calls = tuple(
+            ToolCall(
+                id=call.id,
+                name=call.name,
+                arguments={
+                    key: restore(value, redaction.mapping) if isinstance(value, str) else value
+                    for key, value in call.arguments.items()
+                },
+            )
+            for call in completion.tool_calls
+        )
+        return Completion(
+            text_parts=restored,
+            tool_calls=calls,
+            stop_reason=completion.stop_reason,
+        )
+
     # ── Recording ─────────────────────────────────────────────────────────────
 
     def _record(
@@ -336,6 +498,7 @@ class RoutingBackend:
         *,
         kind: str,
         payload: str | None = None,
+        extra: Mapping[str, object] | None = None,
     ) -> str:
         if self._ledger is None:
             return ""
@@ -352,6 +515,7 @@ class RoutingBackend:
                 "rejected": [list(r) for r in placement.rejected],
                 "working_set": self._working_set.reason,
                 "brief_of": placement.brief_of,
+                **(dict(extra) if extra else {}),
             },
         )
 

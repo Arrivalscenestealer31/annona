@@ -6,6 +6,29 @@ Notable changes to this project. Format based on
 
 ## [Unreleased]
 
+### Redaction: a fourth answer, and a mascot
+
+`on_unavailable: redact`. When a step is too sensitive for every available
+substrate, the policy can now ask for the identifiers to be replaced locally
+instead of only holding the step: the redacted text is reclassified from
+scratch, placed on the strength of what it now contains, and the answer is
+re-identified on the machine from a mapping that never leaves it.
+
+The first redactor is an adapter for
+[rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii) (Simone Rizzo, MIT) —
+0.3B, CPU-only, 22 Italian categories including codice fiscale, partita IVA and
+cadastral identifiers. No upstream code is vendored: `runner/capability/
+redactors/rizzo_pii.py` is a client for its documented `/analyze` contract, and
+any redactor satisfying the same protocol can take its place.
+
+Three properties are tested rather than asserted: output that still carries an
+identifier is **held**, a redactor outage **holds by default**, and the mapping
+never reaches the ledger — which records the kinds and counts of what was
+replaced and nothing else. Pseudonymous is not anonymous, and the documentation
+says so.
+
+Also: Annona has a face. `docs/assets/annona-mascot.png`.
+
 ### The perimeter, built: placement, classification, and a verifiable record
 
 Phases F0 through F3 of the HLD. The kernel Annona is named after now exists:

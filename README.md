@@ -1,15 +1,32 @@
 <div align="center">
 
+<img src="docs/assets/annona-mascot-512.png" alt="Annona" width="230">
+
 # Annona
 
-**Where it runs is a decision.**
+### The sovereign execution kernel for AI agents
 
-*an-NO-na* · the office that kept Rome fed
+**Where it runs is a decision — and the decision is yours, enforced and recorded.**
 
-[![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20DGX-lightgrey)](#install)
-[![tests](https://img.shields.io/badge/tests-508%20passing-brightgreen)](.github/workflows/ci.yml)
-[![status](https://img.shields.io/badge/status-beta-orange)](#the-honest-part)
+![100%](https://img.shields.io/badge/100%25-555?style=flat-square)![LOCAL BY DEFAULT](https://img.shields.io/badge/LOCAL_BY_DEFAULT-1F6F68?style=flat-square)
+![POLICY](https://img.shields.io/badge/POLICY-555?style=flat-square)![DEFAULT DENY](https://img.shields.io/badge/DEFAULT_DENY-1F6F68?style=flat-square)
+![GDPR](https://img.shields.io/badge/GDPR-555?style=flat-square)![BY DESIGN](https://img.shields.io/badge/BY_DESIGN-1F6F68?style=flat-square)
+![EU AI ACT](https://img.shields.io/badge/EU_AI_ACT-555?style=flat-square)![ALIGNED](https://img.shields.io/badge/ALIGNED-1F6F68?style=flat-square)
+
+![placement](https://img.shields.io/badge/placement-per_step-informational?style=flat-square)
+![leak rate](https://img.shields.io/badge/leak_rate-0-success?style=flat-square)
+![ledger](https://img.shields.io/badge/ledger-hash--chained-success?style=flat-square)
+![tests](https://img.shields.io/badge/tests-516_passing-brightgreen?style=flat-square)
+![arch](https://img.shields.io/badge/arm64-+_amd64-lightgrey?style=flat-square)
+![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)
+
+📐 **[Read the high-level design](docs/design/hld.md)** — components, the placement algorithm, the DGX appliance, the threat model, and the numbers it is judged by
+
+[![RUN IT LOCALLY](https://img.shields.io/badge/▶_RUN_IT-LOCALLY-1F6F68?style=for-the-badge)](#try-it-in-sixty-seconds)
+[![DEPLOY ON A DGX](https://img.shields.io/badge/⬛_DEPLOY_ON-A_DGX-111?style=for-the-badge)](deploy/README.md)
+[![VERIFY AN APPLIANCE](https://img.shields.io/badge/✓_VERIFY-AN_APPLIANCE-8F7320?style=for-the-badge)](deploy/README.md#verifying-an-appliance-before-you-hand-it-over)
+
+🐳 Container · 🖥️ CLI · 🧩 any OpenAI-compatible runtime — *an-NO-na*, the office that kept Rome fed
 
 </div>
 
@@ -149,6 +166,74 @@ Now ask the same question about a public tender document. Steps 1 and 3 are
 placed on the frontier model, the answer is better, and it costs a tenth as much.
 
 **Same code. Same plan. Different policy verdict.** That is the product.
+
+## Working with the Italian open-source stack
+
+Annona decides *where* work runs. It does not try to be every instrument used
+along the way, and the first one it plugs into is
+**[rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii)** by Simone Rizzo
+(Rizzo AI Academy, MIT): a 0.3B Italian PII model that runs on a CPU with no API
+key and recognises 22 categories, including *codice fiscale*, *partita IVA* and
+cadastral identifiers that no other open model covers.
+
+The division of labour is clean, and it is the reason the two fit:
+
+| | **rizzo-pii** | **Annona** |
+|---|---|---|
+| Answers | *what is an identifier?* | *may this cross, and where does it run?* |
+| Is | a model | a kernel |
+| Produces | redacted text + a local mapping | a decision, enforced, and a ledger entry |
+
+Together they add a fourth answer to the three the perimeter already had. When a
+step is too sensitive for every available substrate, instead of only *holding*
+it, the policy can ask for **redaction**:
+
+```yaml
+redaction:
+  provider: rizzo-pii
+  endpoint: http://127.0.0.1:5005
+  labels:                       # its 22 categories → your three classes
+    CF: restricted
+    PIVA: restricted
+    CATASTO: restricted
+    FULLNAME: internal
+  on_error: hold                # a redactor that is down stops the step
+
+rules:
+  - match: { class: restricted }
+    allow: [local-gpu]
+    on_unavailable: redact      # replace the identifiers rather than refuse
+```
+
+```
+Il Sig. Mario Rossi, C.F. RSSMRA85T10A562S, chiede una proroga.
+  ↓  locally, by rizzo-pii
+Il Sig. [FULLNAME_1], C.F. [CF_1], chiede una proroga.
+  ↓  reclassified public → cleared → frontier model
+Il Sig. [FULLNAME_1] ha tempo fino al 15 marzo.
+  ↓  re-identified here, from a mapping that never left
+Il Sig. Mario Rossi ha tempo fino al 15 marzo.
+```
+
+Three properties make this a control rather than a hope, and each is a test:
+
+- **the redacted text is reclassified from scratch.** A redactor that missed an
+  identifier produces text that merely *looks* safe; if anything is still there,
+  the step is held. The redactor is the instrument, the perimeter is the
+  authority.
+- **a redactor outage holds the step** by default, because a control that
+  disappears under stress is not a control.
+- **the mapping never leaves the process** and never enters the ledger — the
+  record says *two identifiers of kind CF and FULLNAME were replaced*, and
+  nothing more.
+
+> **Pseudonymous is not anonymous.** Under GDPR, replacing a name with a stable
+> token leaves personal data: the mapping exists and re-identification is
+> possible by design. This reduces exposure, it does not remove the need for a
+> lawful basis, and Annona says so rather than implying otherwise.
+
+Any redactor satisfying the same small protocol can be wired in its place — the
+policy names a provider, and the decision layer never learns which one.
 
 ## Try it in sixty seconds
 

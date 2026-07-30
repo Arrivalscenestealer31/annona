@@ -17,3 +17,10 @@ datapizza-ai
 Copyright (c) Datapizza Labs
 Licensed under the MIT License.
 https://github.com/datapizza-labs/datapizza-ai
+
+This product can interoperate with rizzo-pii
+(https://github.com/Rizzo-AI-Academy/rizzo-pii), Copyright (c) 2026 Simone Rizzo
+— Rizzo AI Academy, licensed under the MIT License. No rizzo-pii code is
+included here: runner/capability/redactors/rizzo_pii.py is an independent client
+for its documented HTTP contract, and the model runs in the operator's own
+process.

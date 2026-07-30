@@ -28,6 +28,7 @@ from runner.policy.models import (
     Substrate,
     ToolPolicy,
 )
+from runner.policy.redaction import RedactionPolicy
 
 __all__ = [
     "default_policy",
@@ -140,9 +141,9 @@ def _parse_rules(raw: Sequence[Any], known: set[str]) -> tuple[Rule, ...]:
             raise PolicyError(f"rules[{index}] allows undeclared substrates: {', '.join(unknown)}")
 
         on_unavailable = str(body.get("on_unavailable", "hold"))
-        if on_unavailable not in ("hold", "queue", "brief"):
+        if on_unavailable not in ("hold", "queue", "brief", "redact"):
             raise PolicyError(
-                f"rules[{index}].on_unavailable must be hold, queue or brief, "
+                f"rules[{index}].on_unavailable must be hold, queue, brief or redact, "
                 f"got {on_unavailable!r}"
             )
 
@@ -192,6 +193,51 @@ def _parse_egress(raw: Mapping[str, Any], known: set[str]) -> EgressPolicy:
     )
 
 
+def _parse_redaction(raw: Mapping[str, Any]) -> RedactionPolicy:
+    """Parse the ``redaction:`` section.
+
+    The label map is the interesting part: a detector speaks its own vocabulary
+    — rizzo-pii has 22 Italian categories — and this is where an operator says
+    what each of them means *here*. An unmapped label falls to
+    ``default_label_class`` rather than to public, because a detector finding
+    something it can name is evidence of sensitivity, not of its absence.
+    """
+    if not raw:
+        return RedactionPolicy()
+
+    provider = str(raw.get("provider", "") or "")
+    labels: dict[str, SensitivityClass] = {}
+    for label, value in _require_mapping(raw.get("labels"), "redaction.labels").items():
+        try:
+            labels[str(label).upper()] = SensitivityClass.parse(value)
+        except ValueError as exc:
+            raise PolicyError(f"redaction.labels.{label}: {exc}") from exc
+
+    try:
+        default_class = SensitivityClass.parse(raw.get("default_label_class", "internal"))
+    except ValueError as exc:
+        raise PolicyError(f"redaction.default_label_class: {exc}") from exc
+
+    on_error = str(raw.get("on_error", "hold"))
+    if on_error not in ("hold", "ignore"):
+        raise PolicyError(
+            f"redaction.on_error must be hold or ignore, got {on_error!r}. "
+            "'hold' means a redactor outage stops the step; 'ignore' means the "
+            "step proceeds on regex classification alone, which is a decision "
+            "someone should make on purpose."
+        )
+
+    return RedactionPolicy(
+        provider=provider,
+        endpoint=str(raw.get("endpoint", "")),
+        timeout=float(raw.get("timeout", 15.0)),
+        labels=labels,
+        default_label_class=default_class,
+        classify=bool(raw.get("classify", False)),
+        on_error=on_error,
+    )
+
+
 def _parse_tools(raw: Mapping[str, Any]) -> ToolPolicy:
     allow_raw = _require_mapping(raw.get("allow"), "tools.allow")
     allow = {
@@ -230,6 +276,7 @@ def parse_policy(document: Mapping[str, Any], *, source: str = "<memory>") -> Po
     rules = _parse_rules(_require_sequence(document.get("rules"), "rules"), known)
     egress = _parse_egress(_require_mapping(document.get("egress"), "egress"), known)
     tools = _parse_tools(_require_mapping(document.get("tools"), "tools"))
+    redaction = _parse_redaction(_require_mapping(document.get("redaction"), "redaction"))
 
     policy = Policy(
         version=int(document.get("version", 1)),
@@ -238,8 +285,18 @@ def parse_policy(document: Mapping[str, Any], *, source: str = "<memory>") -> Po
         rules=rules,
         egress=egress,
         tools=tools,
+        redaction=redaction,
         source=source,
     )
+
+    # A rule cannot ask for an action the deployment cannot perform. Discovering
+    # that `on_unavailable: redact` was a no-op at the moment it mattered is the
+    # kind of surprise this project exists to prevent.
+    for rule in rules:
+        if rule.on_unavailable == "redact" and not redaction.enabled:
+            raise PolicyError(
+                f"{rule.id} asks for redaction, but no redaction.provider is configured"
+            )
 
     # A rule that allows a substrate which cannot legally hold its class is not a
     # typo the perimeter should quietly work around: it means the author believes
