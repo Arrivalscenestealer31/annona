@@ -16,7 +16,7 @@
 ![placement](https://img.shields.io/badge/placement-per_step-informational?style=flat-square)
 ![leak rate](https://img.shields.io/badge/leak_rate-0-success?style=flat-square)
 ![ledger](https://img.shields.io/badge/ledger-hash--chained-success?style=flat-square)
-![tests](https://img.shields.io/badge/tests-549_passing-brightgreen?style=flat-square)
+![tests](https://img.shields.io/badge/tests-559_passing-brightgreen?style=flat-square)
 ![arch](https://img.shields.io/badge/arm64-+_amd64-lightgrey?style=flat-square)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)
 
@@ -227,6 +227,35 @@ The shipped set is deliberately generic in name and specific in effect:
 annona skills                      # installed · allowed · usable here
 annona skills --show image-report  # read the instruction yourself
 ```
+
+### Claude's skills work here
+
+The format is identical, so anything from
+[`anthropics/skills`](https://github.com/anthropics/skills) — or anything you
+already wrote for Claude Code — installs unchanged:
+
+```bash
+annona skills-install ~/Downloads/pdf          # a folder
+annona skills-install pdf                      # or by name, from ~/.claude/skills
+annona skills                                  # see what landed
+```
+
+Two things happen on the way in, and both are the point:
+
+**An imported skill is pinned to the perimeter.** A skill is an instruction your
+agent will follow — a supply-chain dependency that happens to be prose. One you
+did not write runs inside your walls until you read it and say otherwise with
+`--trust`. Provenance goes into the front matter; the body is copied byte for
+byte, because silently editing somebody's instruction would be its own kind of
+supply-chain problem.
+
+**Installed is not enabled.** The policy still has to name it. Copying a file
+into a directory is not a decision about what your agents may do.
+
+Skills that bundle `scripts/` are copied whole and the install says so plainly:
+those scripts will not run unless your policy allows the `shell` tool, which by
+default it does not. The instructions still work; the automation in them does
+not.
 
 Skills are **default-deny** like tools: one that the policy does not name is
 never offered, and asking for a disabled skill is answered exactly like asking

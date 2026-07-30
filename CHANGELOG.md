@@ -32,6 +32,15 @@ enable. Bodies are classified by the tracker like any other material entering a
 transcript, so an instruction file carrying an identifier raises the class of
 the run rather than sneaking in under the classifier.
 
+`annona skills-install` takes a folder, a `SKILL.md`, or the name of a skill in
+`~/.claude/skills` — so anything from `anthropics/skills` or anything already
+written for Claude Code installs unchanged, `scripts/` and `references/`
+included. An imported skill is **pinned local by default**: prose you did not
+write is still a supply-chain dependency, and `--trust` is the flag somebody has
+to type after reading it. Provenance lands in the front matter, the body is
+copied byte for byte, and installed is still not enabled — the policy has to
+name it.
+
 `annona skills` lists what is installed, allowed and usable here, and
 `--show` prints an instruction so an operator can read what their model is
 being told. Substrates gained a `vision` flag; a skill requiring it is not

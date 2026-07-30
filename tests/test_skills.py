@@ -408,3 +408,143 @@ def test_a_skill_body_is_classified_like_any_other_material(tmp_path):
         ToolCall(id="1", name="skill", arguments={"name": "leaky"})
     )
     assert enforcement.klass is RESTRICTED
+
+
+# ── Installing somebody else's skill ──────────────────────────────────────────
+
+
+def claude_style_skill(tmp_path, name="pdf-filler", *, scripts=False, front_extra=""):
+    """A skill exactly as Claude's repository ships one: name, description, prose."""
+    folder = tmp_path / "source" / name
+    folder.mkdir(parents=True)
+    (folder / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Fill in a PDF form and produce a completed copy."
+        f"{front_extra}\n---\n\n# Filling a PDF form\n\n1. Read the form.\n"
+    )
+    if scripts:
+        (folder / "scripts").mkdir()
+        (folder / "scripts" / "fill.py").write_text("print('hello')\n")
+        (folder / "references").mkdir()
+        (folder / "references" / "fields.md").write_text("# known fields\n")
+    return folder
+
+
+def test_a_vanilla_claude_skill_installs_unchanged_in_substance(tmp_path):
+    """The format is the same on purpose: an ecosystem beats a format."""
+    from runner.skills.install import install_skill
+
+    installed = install_skill(claude_style_skill(tmp_path), tmp_path / "dest")
+
+    assert installed.skill.name == "pdf-filler"
+    assert "Read the form" in installed.skill.body
+
+
+def test_an_imported_skill_is_pinned_to_the_perimeter_by_default(tmp_path):
+    """The trust rule, and the reason this command exists at all.
+
+    A skill is an instruction your agent will follow: a supply-chain dependency
+    that happens to be prose. One you did not write runs inside the walls until
+    somebody reads it and says otherwise.
+    """
+    from runner.skills.install import install_skill
+
+    installed = install_skill(claude_style_skill(tmp_path), tmp_path / "dest")
+
+    assert installed.pinned
+    assert installed.skill.pins_local
+    assert installed.skill.floor is RESTRICTED
+    assert "imported, not written here" in (tmp_path / "dest" / "pdf-filler" / "SKILL.md").read_text()
+
+
+def test_trust_keeps_the_skill_as_its_author_wrote_it(tmp_path):
+    from runner.skills.install import install_skill
+
+    installed = install_skill(claude_style_skill(tmp_path), tmp_path / "dest", trust=True)
+    assert not installed.pinned
+
+
+def test_provenance_is_recorded_in_the_file(tmp_path):
+    from runner.skills.install import install_skill
+
+    install_skill(claude_style_skill(tmp_path), tmp_path / "dest")
+    text = (tmp_path / "dest" / "pdf-filler" / "SKILL.md").read_text()
+
+    assert "imported_from" in text
+    assert "imported_at" in text
+
+
+def test_the_body_is_copied_byte_for_byte(tmp_path):
+    """Only the front matter is touched. Silently editing an instruction would
+    be its own supply-chain problem."""
+    from runner.skills.install import install_skill
+
+    source = claude_style_skill(tmp_path)
+    original_body = (source / "SKILL.md").read_text().split("---", 2)[2]
+
+    install_skill(source, tmp_path / "dest")
+    installed_body = (tmp_path / "dest" / "pdf-filler" / "SKILL.md").read_text().split("---", 2)[2]
+
+    assert installed_body == original_body
+
+
+def test_bundled_scripts_and_references_come_along(tmp_path):
+    from runner.skills.install import install_skill
+
+    installed = install_skill(claude_style_skill(tmp_path, scripts=True), tmp_path / "dest")
+
+    assert installed.has_scripts, "the caller must be told, so it can warn about the shell tool"
+    assert (installed.destination / "scripts" / "fill.py").exists()
+    assert (installed.destination / "references" / "fields.md").exists()
+
+
+def test_nothing_is_written_when_the_skill_does_not_validate(tmp_path):
+    """Validation before copying: a broken skill never lands."""
+    from runner.skills.install import install_skill
+
+    broken = tmp_path / "source" / "broken"
+    broken.mkdir(parents=True)
+    (broken / "SKILL.md").write_text("---\ndescription: no name here\n---\n\nbody\n")
+
+    with pytest.raises(ConfigurationError, match="must declare a name"):
+        install_skill(broken, tmp_path / "dest")
+
+    assert not (tmp_path / "dest").exists()
+
+
+def test_installing_over_an_existing_skill_needs_force(tmp_path):
+    from runner.skills.install import install_skill
+
+    source = claude_style_skill(tmp_path)
+    install_skill(source, tmp_path / "dest")
+
+    with pytest.raises(ConfigurationError, match="already exists"):
+        install_skill(source, tmp_path / "dest")
+
+    assert install_skill(source, tmp_path / "dest", force=True).skill.name == "pdf-filler"
+
+
+def test_an_installed_skill_is_still_not_enabled(tmp_path):
+    """Copying a file into a directory is not a decision about what agents may do."""
+    from runner.skills.install import install_skill
+
+    install_skill(claude_style_skill(tmp_path), tmp_path / "dest")
+    skills = discover_skills([tmp_path / "dest"])
+
+    assert "pdf-filler" in skills
+
+    enforcement = Enforcement.for_run(
+        policy=policy_with(["second-opinion"]),
+        ledger_path=tmp_path / "ledger.jsonl",
+        backends={"local-gpu": Echo("local-gpu", local=True), "frontier": Echo("frontier")},
+        skills=skills,
+        probe=False,
+        fsync=False,
+    )
+    assert [s.name for s in enforcement.skill_registry().available()] == []
+
+
+def test_a_source_that_does_not_exist_says_where_it_looked(tmp_path):
+    from runner.skills.install import install_skill
+
+    with pytest.raises(ConfigurationError, match=".claude/skills"):
+        install_skill("no-such-skill", tmp_path / "dest")

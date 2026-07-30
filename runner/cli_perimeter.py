@@ -23,7 +23,7 @@ from rich.markup import escape
 from rich.table import Table
 
 from runner.audit.ledger import verify_file
-from runner.kernel.errors import PolicyError
+from runner.kernel.errors import ConfigurationError, PolicyError
 from runner.kernel.types import Requirement, SensitivityClass
 from runner.placement.engine import PlacementDecisionEngine
 from runner.placement.registry import SubstrateRegistry, http_prober
@@ -261,6 +261,56 @@ def skills(
     )
 
 
+def skills_install(
+    source: str = typer.Argument(
+        ..., help="Folder, SKILL.md, or the name of a skill in ~/.claude/skills"
+    ),
+    name: str = typer.Option("", "--name", "-n", help="Install under a different name"),
+    trust: bool = typer.Option(
+        False, "--trust", help="Keep the skill's own pins value instead of pinning it local"
+    ),
+    force: bool = typer.Option(False, "--force", help="Replace an existing installation"),
+    home: Path = typer.Option(None, "--home", help="Skills directory (default ~/.annona/skills)"),
+):
+    """📥 Install a skill somebody else wrote — including Claude's."""
+    from runner.skills.install import install_skill
+    from runner.skills.loader import skills_dirs
+
+    target = Path(home) if home else skills_dirs()[-1]
+
+    try:
+        installed = install_skill(
+            source, target, name=name or None, trust=trust, force=force
+        )
+    except ConfigurationError as exc:
+        console.print(f"❌ [red]{escape(str(exc))}[/red]")
+        raise typer.Exit(1) from exc
+
+    skill = installed.skill
+    console.print(f"\n✅ [green]installed[/green] [cyan]{skill.name}[/cyan] → {installed.destination}")
+    console.print(f"   [dim]{escape(skill.description)}[/dim]\n")
+
+    if installed.pinned and not trust:
+        console.print(
+            "🔒 [magenta]pinned local[/magenta] — you did not write this instruction, so any run "
+            "that loads it stays inside your perimeter.\n"
+            "   [dim]Read it (annona skills --show "
+            f"{skill.name}), then reinstall with --trust if you want it unpinned.[/dim]"
+        )
+
+    if installed.has_scripts:
+        console.print(
+            "\n⚠️  [yellow]this skill bundles scripts[/yellow] — they will not run unless your "
+            "policy allows the `shell` tool, which by default it does not. The instructions "
+            "still work; the automation in them does not."
+        )
+
+    console.print(
+        f"\n[bold]Not enabled yet.[/bold] Add it to your policy to offer it to a model:\n"
+        f"  [cyan]{escape(f'skills: [{skill.name}]')}[/cyan]"
+    )
+
+
 def why(
     step_id: str = typer.Argument(..., help="Step id, as printed by a run or by `annona audit`"),
     ledger: Path = typer.Option(None, "--ledger", "-l", help="Ledger file"),
@@ -369,6 +419,7 @@ def register(app: typer.Typer) -> None:
     app.add_typer(policy_app)
     app.command("substrates")(substrates)
     app.command("skills")(skills)
+    app.command("skills-install")(skills_install)
     app.command("why")(why)
     app.command("verify")(verify)
     app.command("audit")(audit)
