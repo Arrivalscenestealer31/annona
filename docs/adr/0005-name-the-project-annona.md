@@ -117,7 +117,7 @@ Deliberately not applied:
 - The Python package stays `runner`. Same reason as ADR 0004: churning every
   import buys nothing a user can see.
 - The repository directory stays `akaion-app-runner` until the split-out repo is
-  created. The public repository will be `Akaion-repos/annona`; that is a
+  created. The public repository will be `akaion-ai/annona`; that is a
   create, not a rename, so no clone URL breaks.
 
 ## Consequences

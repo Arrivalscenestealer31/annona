@@ -381,7 +381,7 @@ def write_default_policy(
     header = (
         "# Annona policy — what may run, where, and what may cross.\n"
         "# Every decision the perimeter takes is a function of this file.\n"
-        "# Reference: https://github.com/Akaion-repos/annona/blob/main/docs/design/hld.md\n\n"
+        "# Reference: https://github.com/akaion-ai/annona/blob/main/docs/design/hld.md\n\n"
     )
     body = yaml.safe_dump(
         default_policy_document(local_endpoint=local_endpoint, local_model=local_model),

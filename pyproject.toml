@@ -93,8 +93,8 @@ akaion = "runner.cli:app"
 
 [project.urls]
 Homepage = "https://akaion.com"
-Repository = "https://github.com/Akaion-repos/annona"
-Documentation = "https://akaion-repos.github.io/annona/"
+Repository = "https://github.com/akaion-ai/annona"
+Documentation = "https://akaion-ai.github.io/annona/"
 
 [tool.setuptools.packages.find]
 include = ["runner*"]

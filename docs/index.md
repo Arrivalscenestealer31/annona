@@ -20,7 +20,7 @@ enforces the decision, executes it, and records it.
 </div>
 
 ```bash
-git clone git@github.com:Akaion-repos/annona.git
+git clone git@github.com:akaion-ai/annona.git
 cd annona && make setup
 make demo      # a real agentic run: no credentials, no network
 ```

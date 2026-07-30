@@ -1,8 +1,8 @@
 site_name: Annona
 site_description: Annona — the sovereign execution kernel for AI agents. Where it runs is a decision.
-site_url: https://akaion-repos.github.io/annona/
-repo_url: https://github.com/Akaion-repos/annona
-repo_name: Akaion-repos/annona
+site_url: https://akaion-ai.github.io/annona/
+repo_url: https://github.com/akaion-ai/annona
+repo_name: akaion-ai/annona
 edit_uri: edit/main/docs/
 copyright: Annona — an Akaion AI Lab project · Apache-2.0
 

@@ -153,7 +153,7 @@ placed on the frontier model, the answer is better, and it costs a tenth as much
 ## Try it in sixty seconds
 
 ```bash
-git clone git@github.com:Akaion-repos/annona.git
+git clone git@github.com:akaion-ai/annona.git
 cd annona
 make setup          # venv + dependencies
 make demo           # a real agentic run — no credentials, no network

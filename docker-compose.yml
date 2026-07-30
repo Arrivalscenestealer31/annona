@@ -13,7 +13,7 @@ name: annona
 
 services:
   annona:
-    image: ghcr.io/akaion-repos/annona:${ANNONA_VERSION:-latest}
+    image: ghcr.io/akaion-ai/annona:${ANNONA_VERSION:-latest}
     build:
       context: .
       dockerfile: Dockerfile

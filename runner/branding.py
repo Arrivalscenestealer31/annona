@@ -74,8 +74,8 @@ ORIGIN = (
 
 VENDOR = "Akaion AI Lab"
 
-REPO_URL = "https://github.com/Akaion-repos/annona"
-DOCS_URL = "https://akaion-repos.github.io/annona/"
+REPO_URL = "https://github.com/akaion-ai/annona"
+DOCS_URL = "https://akaion-ai.github.io/annona/"
 
 LICENSE = "Apache-2.0"
 

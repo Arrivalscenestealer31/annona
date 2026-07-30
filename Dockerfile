@@ -45,7 +45,7 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="Annona" \
       org.opencontainers.image.description="The sovereign execution kernel for AI agents" \
-      org.opencontainers.image.source="https://github.com/Akaion-repos/annona" \
+      org.opencontainers.image.source="https://github.com/akaion-ai/annona" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Akaion AI Lab"
 
