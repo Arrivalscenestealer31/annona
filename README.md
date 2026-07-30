@@ -8,7 +8,7 @@
 
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20DGX-lightgrey)](#install)
-[![tests](https://img.shields.io/badge/tests-343%20passing-brightgreen)](.github/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-508%20passing-brightgreen)](.github/workflows/ci.yml)
 [![status](https://img.shields.io/badge/status-beta-orange)](#the-honest-part)
 
 </div>
@@ -181,6 +181,44 @@ Nothing left the process. The same run is a CI gate on every push
 Then: `make run` starts the daemon and a local UI on `127.0.0.1:7070`. No account
 required, ever.
 
+### As an appliance, with a real model
+
+```bash
+docker compose up -d                                   # kernel + Ollama, arm64 or amd64
+docker compose exec annona-ollama ollama pull qwen2.5:14b
+docker compose exec annona annona policy init --endpoint http://ollama:11434 --model qwen2.5:14b
+make verify                                            # the acceptance run
+```
+
+`make verify` plants a canary in a client file, lets a real agent read it, and
+checks the nine things a customer's auditor would:
+
+```
+  pass  the local runtime answers
+  pass  the model called the tool
+  pass  reading a client file made the run restricted
+  pass  no payload reached the frontier substrate
+  pass  leak rate is zero
+  pass  every inference was placed on-prem
+  pass  the ledger chain verifies
+  pass  the run produced an answer
+  pass  with the GPU down, restricted work is held (not rerouted)
+```
+
+The last check is the commercial one. Deployment, sizing and the DGX Spark
+specifics are in [`deploy/README.md`](deploy/README.md).
+
+### Operating it
+
+```bash
+annona policy show             # the policy as the runtime understands it
+annona policy test restricted  # where would restricted work go, right now?
+annona substrates              # what is registered, where, and whether it is up
+annona why step_7f3a           # reconstruct one decision from the ledger
+annona verify                  # check the chain, offline, contacting nobody
+annona audit --held            # every refusal, with its reason
+```
+
 ## The policy is a file you own
 
 ```yaml
@@ -227,39 +265,27 @@ fork per deployment is how sovereignty claims rot, so there isn't one.
 Detached means detached: no account, no remote host, no outbound connection at
 all. It is the configuration we expect a fork to start from.
 
-On a **DGX Spark** the appliance runs Annona and vLLM under one compose file,
-with the daemon unprivileged and only vLLM touching the GPU. Two things that
-appliance vendors usually skip, and this one states up front: every image must be
-`linux/arm64` + CUDA 13 (x86 images silently do not run on a GB10), and the real
-ceiling is memory bandwidth, not the 128 GB. See
-[HLD §7.2](docs/design/hld.md#72-the-appliance-on-a-dgx-spark) — including what
+On a **DGX Spark** the appliance runs Annona and vLLM under one compose file
+(`--profile vllm`), with the daemon unprivileged and only vLLM touching the GPU.
+Two things appliance vendors usually skip, stated up front: every image must be
+`linux/arm64` + CUDA 13 — x86 images silently do not run on a GB10, so the
+release matrix builds and tests both — and the real ceiling is memory bandwidth,
+not the 128 GB. See [`deploy/README.md`](deploy/README.md) and
+[HLD §7.2](docs/design/hld.md#72-the-appliance-on-a-dgx-spark), including what
 GPU attestation does *not* buy you on that hardware.
 
-## The honest part
+## What is built, and what is not
 
 This project publishes its gaps, because a perimeter you cannot verify is a
-slogan. Today Annona executes agent plans locally, checks every tool call, and
-runs against Anthropic, Akaion, or any OpenAI-compatible endpoint. The kernel it
-is named after is not finished:
+slogan.
 
-| Gap | Today | Phase |
-|---|---|---|
-| **The prefect (L2) does not exist** | policy checks are an advisory filter in `permissions/manager.py` | F1 |
-| **Policy is default-allow** | an unrecognised tool is permitted; an empty allow-list means *allow all* | F1 |
-| **No classification** | nothing scores material, so `class` has no source yet | F1 |
-| **No placement engine** | the provider is picked by config, once, per session | F2 |
-| **No egress gate** | with a cloud provider the transcript — file contents included — crosses on every turn | F2 |
-| **Ledger is a log file** | not hash-chained, not verifiable | F3 |
-| **Local reasoning cannot use tools** | with a local provider the loop degrades to plain chat; grammars are the fix and the research claim | F1 |
-| **No arm64 container release** | blocks the DGX acceptance run | F0 |
-
-Each one has a metric and a target attached rather than a promise —
-[HLD §9](docs/design/hld.md#9-verification-the-numbers-this-design-lives-or-dies-by)
-and [`docs/research/index.md`](docs/research/index.md), where negative results get
-published too.
-
-What *is* finished is the spine: one agentic loop, provider-agnostic, with the
-layering enforced by CI rather than by convention.
+**Built and under test.** Classification (paths, symlink targets, content
+patterns, and paths named in a prompt), the monotone working set, a default-deny
+tool gate, the placement engine with its conformance matrix, substrate health
+with a circuit breaker, failover that cannot widen the permitted set, locally
+produced briefs that are reclassified before they may cross, a hash-chained
+ledger with `verify` / `why` / `audit`, an arm64 + amd64 container image, and a
+nine-check acceptance run for a new appliance.
 
 ```
 $ make contracts
@@ -268,9 +294,32 @@ L3 agent depends only inward on L0                           KEPT
 L3 agent and L1 capability do not know about each other      KEPT
 L0 kernel imports no provider SDK                            KEPT
 L3 agent loop imports no provider SDK                        KEPT
+L2 policy depends only inward on L0                          KEPT
+L2 placement depends on policy and the kernel, never outward KEPT
+L2 audit depends on nothing but the kernel                   KEPT
+L2 policy, placement and audit cannot reach an L1 adapter    KEPT
+L2 imports no provider SDK                                   KEPT
 ```
 
-Two of those mean "provider-agnostic" is a fact that fails the build when broken.
+The last four are why "failover cannot widen the permitted set" is structural: a
+shortcut from the decision layer to an adapter is not a code review away, it is
+a build failure.
+
+**Not built.** Stated as plainly as the rest:
+
+| Gap | Today | Phase |
+|---|---|---|
+| **Grammar-constrained tool calls** | small models are asked politely; malformed arguments become a tool error the model can retry from | F1 — the research claim |
+| **The ledger has no external anchor** | tamper-evident against edits, deletions and reordering; a chain rebuilt wholesale by someone with write access is not detectable | F3 |
+| **Queued steps are not resumed automatically** | `on_unavailable: queue` records the decision; retrying is manual | F2 |
+| **The legacy config path is still allow-by-default** | an installation without a policy keeps the old permission manager; `annona policy init` is what switches it | F1 |
+| **Vault metadata is not portable** | markdown holds the body; titles, tags and sync state live only in SQLite | F3 |
+| **No measured leak rate at scale** | zero over the acceptance corpus and the live model tests; the 1 000-step number is not run yet | F2 |
+
+Each has a metric and a target rather than a promise —
+[HLD §9](docs/design/hld.md#9-verification-the-numbers-this-design-lives-or-dies-by)
+and [`docs/research/index.md`](docs/research/index.md), where negative results get
+published too.
 
 ## The trust boundary
 

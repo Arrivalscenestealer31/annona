@@ -1,14 +1,16 @@
-# Akaion Runner — developer entry points.
+# Annona — developer and operator entry points.
 #
 # Everything here works offline. `make demo` runs a real agentic loop with real
 # tool execution and no credentials, which is the fastest way to see what this
-# repository actually does.
+# repository actually does; `make verify` is the one an operator runs on a new
+# appliance before handing it over.
 
 PY  := env/bin/python
 PIP := env/bin/pip
 
 .DEFAULT_GOAL := help
-.PHONY: help setup test test-cov lint format typecheck contracts check demo run docs docs-serve clean
+.PHONY: help setup test test-cov test-live test-container lint format typecheck contracts \
+        check demo run verify image image-multiarch up down docs docs-serve clean
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -26,6 +28,12 @@ test: ## Run the test suite
 
 test-cov: ## Run the test suite with a coverage report
 	$(PY) -m pytest --cov=runner --cov-report=term-missing --cov-report=html
+
+test-live: ## Run the tests that need a real local model (Ollama must be up)
+	ANNONA_LIVE_OLLAMA=1 $(PY) -m pytest -m live -v
+
+test-container: image ## Run the tests that need a Docker daemon
+	ANNONA_CONTAINER_TESTS=1 $(PY) -m pytest -m container -v
 
 lint: ## Lint (ruff)
 	$(PY) -m ruff check runner tests
@@ -47,6 +55,21 @@ demo: ## Offline end-to-end agentic run: no credentials, no network
 
 run: ## Start the daemon and local UI on 127.0.0.1:7070
 	./start.sh
+
+verify: ## Acceptance run against a local model: placement, leak rate, ledger
+	$(PY) deploy/verify_appliance.py --model $${ANNONA_LIVE_MODEL:-qwen2.5:14b}
+
+image: ## Build the container image for this machine's architecture
+	docker build -t annona:dev .
+
+image-multiarch: ## Build for arm64 (DGX Spark) and amd64, the release matrix
+	docker buildx build --platform linux/arm64,linux/amd64 -t annona:dev .
+
+up: ## Start the appliance: kernel + local model, on this machine
+	docker compose up -d
+
+down: ## Stop the appliance, keeping volumes (policy, ledger, vault)
+	docker compose down
 
 docs: ## Build the documentation site
 	$(PY) -m mkdocs build --strict

@@ -14,6 +14,7 @@ Backend       Local      Notes
 ============  =========  ====================================================
 ``echo``      yes        Scripted, offline. Tests and ``make demo``.
 ``ollama``    **yes**    A real local model, native tool calling (tier 1).
+``openai``    declared   Any ``/v1`` server: vLLM, llama.cpp, SGLang, LM Studio.
 ``anthropic`` no         Messages API with native tool use.
 ``akaion``    no         Control-plane proxy. Sends the whole transcript.
 ============  =========  ====================================================
@@ -27,11 +28,13 @@ from runner.capability.backends.akaion import AkaionBackend
 from runner.capability.backends.anthropic import AnthropicBackend
 from runner.capability.backends.echo import EchoBackend, script_from_config
 from runner.capability.backends.ollama import OllamaBackend
+from runner.capability.backends.openai_compatible import OpenAICompatibleBackend
 
 __all__ = [
     "AkaionBackend",
     "AnthropicBackend",
     "EchoBackend",
     "OllamaBackend",
+    "OpenAICompatibleBackend",
     "script_from_config",
 ]

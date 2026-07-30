@@ -1,0 +1,30 @@
+# Everything the image must not contain, starting with the things that would
+# turn a public image into an incident.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json
+
+.git
+.github
+env/
+build/
+dist/
+site/
+ui/
+logs/
+tests/
+docs/
+*.egg-info
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+.coverage
+htmlcov/
+*.dmg
+*.AppImage

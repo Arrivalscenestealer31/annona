@@ -121,6 +121,9 @@ markers = [
   "unit: pure unit tests, no I/O",
   "integration: touches the real filesystem or spawns a subprocess",
   "e2e: drives the runner end to end through a real agentic loop (offline)",
+  "live: needs a real local model (ANNONA_LIVE_OLLAMA=1); skipped otherwise",
+  "slow: takes seconds rather than milliseconds",
+  "container: needs a working Docker daemon",
 ]
 
 [tool.coverage.run]

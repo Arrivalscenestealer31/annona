@@ -2,8 +2,9 @@
 
 **Annona — the sovereign execution kernel for AI agents.**
 
-- **Status:** design of record. Sections marked *built* exist in this repository
-  today; sections marked *planned* do not, and say which phase they belong to.
+- **Status:** design of record, and as of Phase F0–F3 also a description of the
+  code. Sections marked *planned* are the ones that do not exist yet, and each
+  says which phase it belongs to; §11 is the honest list.
 - **Audience:** engineers who will implement it, and the security or compliance
   reviewer who has to believe it.
 - **Companion documents:** [Architecture as built](architecture.md) describes
@@ -183,13 +184,13 @@ flowchart TB
     L3 -.->|"depends only inward"| L0
 
     classDef built fill:#eef7ee,stroke:#2c7a2c
-    classDef planned fill:#fff6e5,stroke:#b8860b,stroke-dasharray: 4 3
-    class L0,L1,L3,L4 built
-    class L2 planned
+    class L0,L1,L2,L3,L4 built
 ```
 
-Green is built and under test today. Amber is the L2 prefect, which is Phase 1 and
-the subject of most of this document.
+All five layers are built and under test. L2 is `runner/policy` (classification,
+rules, the default-deny gate), `runner/placement` (substrate health, the
+placement engine, the routing backend) and `runner/audit` (the ledger), wired
+per run by `runner/services/enforcement.py`.
 
 The layering is enforced by `lint-imports` on every build — five contracts in
 `.importlinter`, two of which assert that **neither the kernel nor the agent loop
@@ -251,8 +252,10 @@ flowchart LR
     BACK --> S1 & S2 & S3
     CLASS & POLICY & PLACE & EGRESS --> LEDGER
 
+    classDef built fill:#eef7ee,stroke:#2c7a2c
     classDef planned fill:#fff6e5,stroke:#b8860b,stroke-dasharray: 4 3
-    class CLASS,POLICY,PLACE,EGRESS,LEDGER,SANDBOX planned
+    class CLASS,POLICY,PLACE,EGRESS,LEDGER built
+    class SANDBOX planned
 ```
 
 | Component | Responsibility | One thing it must never do |
@@ -644,10 +647,10 @@ Published deliberately: a perimeter you cannot verify is a slogan.
 
 | Phase | Delivers | Gate to the next |
 |---|---|---|
-| **F0 · appliance bring-up** | arm64 images, compose file, vLLM on GB10, T1/T2/T5/T9 green | tool-call validity ≥ 95 %, TTFT p95 < 2.5 s at c=4 |
-| **F1 · the prefect** | classifier, default-deny policy, sandbox, local tool use via grammars | T3 green, 0 placement violations |
-| **F2 · placement + egress** | placement engine, substrate registry with health, egress gate, briefs | T4 green at 0 canaries, T6 green |
-| **F3 · the record** | hash-chained ledger, `annona verify`, `annona why` | T7 green; an external auditor reproduces a verdict |
+| **F0 · appliance bring-up** | **done** — arm64 + amd64 image, compose file, container acceptance tests, `deploy/verify_appliance.py` | T1/T2 green; TTFT on GB10 still to be measured |
+| **F1 · the prefect** | **done** — classifier, default-deny gate, working set, tracking executor | T3 green, 0 placement violations |
+| **F2 · placement + egress** | **done** — placement engine, health with a circuit breaker, briefs, canaries | T4 at 0 canaries, T6 green |
+| **F3 · the record** | **done** — hash-chained ledger, `annona verify` / `why` / `audit` | T7 green; external anchoring still open |
 | **F4 · fleet** | multi-user policy, per-org substrates, two-box HA | a second customer deploys without a fork |
 
 ---

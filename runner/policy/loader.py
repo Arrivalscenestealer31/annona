@@ -1,0 +1,392 @@
+"""Reading and validating a policy document (layer L2).
+
+Parsing is separated from the model on purpose: every rejection message in this
+module names the offending key, because the operator fixing a policy is usually
+not the person who wrote it, and "invalid policy" with no path is the error
+message that gets worked around by disabling the perimeter.
+
+Nothing here returns a partially valid policy. A document either satisfies the
+schema in full or raises :class:`~runner.kernel.errors.PolicyError`.
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from runner.kernel.errors import PolicyError
+from runner.kernel.types import SensitivityClass
+from runner.policy.models import (
+    ClassSpec,
+    EgressPolicy,
+    Policy,
+    Rule,
+    Substrate,
+    ToolPolicy,
+)
+
+__all__ = [
+    "default_policy",
+    "default_policy_document",
+    "load_policy",
+    "parse_policy",
+    "write_default_policy",
+]
+
+def _require_mapping(value: Any, what: str) -> Mapping[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise PolicyError(f"{what} must be a mapping, got {type(value).__name__}")
+    return value
+
+
+def _require_sequence(value: Any, what: str) -> Sequence[Any]:
+    if value is None:
+        return []
+    if isinstance(value, str) or not isinstance(value, Iterable):
+        raise PolicyError(f"{what} must be a list, got {type(value).__name__}")
+    return list(value)
+
+
+def _parse_classes(raw: Mapping[str, Any]) -> dict[SensitivityClass, ClassSpec]:
+    classes: dict[SensitivityClass, ClassSpec] = {}
+
+    for name, body in raw.items():
+        try:
+            klass = SensitivityClass.parse(name)
+        except ValueError as exc:
+            raise PolicyError(str(exc)) from exc
+
+        spec = _require_mapping(body, f"classes.{name}")
+        patterns: list[re.Pattern[str]] = []
+        for expr in _require_sequence(spec.get("patterns"), f"classes.{name}.patterns"):
+            try:
+                patterns.append(re.compile(str(expr)))
+            except re.error as exc:
+                raise PolicyError(f"classes.{name}.patterns: invalid regex {expr!r}: {exc}") from exc
+
+        classes[klass] = ClassSpec(
+            paths=tuple(str(p) for p in _require_sequence(spec.get("paths"), "paths")),
+            patterns=tuple(patterns),
+            default=bool(spec.get("default", False)),
+        )
+
+    return classes
+
+
+def _parse_substrates(raw: Sequence[Any]) -> tuple[Substrate, ...]:
+    substrates: list[Substrate] = []
+    seen: set[str] = set()
+
+    for index, entry in enumerate(raw):
+        body = _require_mapping(entry, f"substrates[{index}]")
+        sid = str(body.get("id", "")).strip()
+        if not sid:
+            raise PolicyError(f"substrates[{index}] has no id")
+        if sid in seen:
+            raise PolicyError(f"substrates[{index}]: duplicate id {sid!r}")
+        seen.add(sid)
+
+        if "max_class" not in body:
+            raise PolicyError(f"substrate {sid!r} does not declare max_class")
+        try:
+            max_class = SensitivityClass.parse(body["max_class"])
+        except ValueError as exc:
+            raise PolicyError(f"substrate {sid!r}: {exc}") from exc
+
+        substrates.append(
+            Substrate(
+                id=sid,
+                kind=str(body.get("kind", "openai-compatible")),
+                max_class=max_class,
+                jurisdiction=str(body.get("jurisdiction", "world")),
+                endpoint=str(body.get("endpoint", "")),
+                model=str(body.get("model", "")),
+                attestation=str(body.get("attestation", "")),
+                tools=bool(body.get("tools", True)),
+                context_window=int(body.get("context_window", 0)),
+                cost_per_mtok=float(body.get("cost_per_mtok", 0.0)),
+                quality=int(body.get("quality", 50)),
+                probe=bool(body.get("probe", False)),
+            )
+        )
+
+    if not substrates:
+        raise PolicyError("a policy must declare at least one substrate")
+    return tuple(substrates)
+
+
+def _parse_rules(raw: Sequence[Any], known: set[str]) -> tuple[Rule, ...]:
+    rules: list[Rule] = []
+
+    for index, entry in enumerate(raw):
+        body = _require_mapping(entry, f"rules[{index}]")
+        match = _require_mapping(body.get("match"), f"rules[{index}].match")
+        if "class" not in match:
+            raise PolicyError(f"rules[{index}].match must select a class")
+        try:
+            klass = SensitivityClass.parse(match["class"])
+        except ValueError as exc:
+            raise PolicyError(f"rules[{index}]: {exc}") from exc
+
+        allow = tuple(str(s) for s in _require_sequence(body.get("allow"), f"rules[{index}].allow"))
+        unknown = [s for s in allow if s not in known]
+        if unknown:
+            raise PolicyError(f"rules[{index}] allows undeclared substrates: {', '.join(unknown)}")
+
+        on_unavailable = str(body.get("on_unavailable", "hold"))
+        if on_unavailable not in ("hold", "queue", "brief"):
+            raise PolicyError(
+                f"rules[{index}].on_unavailable must be hold, queue or brief, "
+                f"got {on_unavailable!r}"
+            )
+
+        prefer = str(body.get("prefer", "privacy"))
+        if prefer not in ("privacy", "cost", "latency", "quality"):
+            raise PolicyError(
+                f"rules[{index}].prefer must be privacy, cost, latency or quality, got {prefer!r}"
+            )
+
+        rules.append(
+            Rule(
+                klass=klass,
+                allow=allow,
+                on_unavailable=on_unavailable,  # type: ignore[arg-type]
+                prefer=prefer,  # type: ignore[arg-type]
+                id=str(body.get("id") or f"rules[{index}]"),
+            )
+        )
+
+    return tuple(rules)
+
+
+def _parse_egress(raw: Mapping[str, Any], known: set[str]) -> EgressPolicy:
+    brief = _require_mapping(raw.get("brief"), "egress.brief")
+    produced_by = str(brief.get("produced_by", ""))
+    if produced_by and produced_by not in known:
+        raise PolicyError(f"egress.brief.produced_by names an undeclared substrate: {produced_by}")
+
+    allowed_raw = brief.get("allowed_for", ["internal"])
+    try:
+        allowed = tuple(SensitivityClass.parse(v) for v in _require_sequence(allowed_raw, "x"))
+    except ValueError as exc:
+        raise PolicyError(f"egress.brief.allowed_for: {exc}") from exc
+
+    if SensitivityClass.RESTRICTED in allowed:
+        raise PolicyError(
+            "egress.brief.allowed_for may not include 'restricted': a brief is an "
+            "egress mechanism, and restricted material does not leave by any route"
+        )
+
+    return EgressPolicy(
+        brief_produced_by=produced_by,
+        brief_max_tokens=int(brief.get("max_tokens", 512)),
+        brief_must_clear=bool(brief.get("must_clear", True)),
+        allowed_for=allowed,
+        canaries=tuple(str(c) for c in _require_sequence(raw.get("canaries"), "egress.canaries")),
+    )
+
+
+def _parse_tools(raw: Mapping[str, Any]) -> ToolPolicy:
+    allow_raw = _require_mapping(raw.get("allow"), "tools.allow")
+    allow = {
+        str(tool): tuple(str(p) for p in _require_sequence(paths, f"tools.allow.{tool}"))
+        for tool, paths in allow_raw.items()
+    }
+    return ToolPolicy(
+        allow=allow,
+        deny_paths=tuple(str(p) for p in _require_sequence(raw.get("deny_paths"), "tools.deny_paths")),
+    )
+
+
+def parse_policy(document: Mapping[str, Any], *, source: str = "<memory>") -> Policy:
+    """Validate a parsed YAML document into a :class:`Policy`.
+
+    Every failure raises :class:`~runner.kernel.errors.PolicyError` with the
+    path of the offending key, because the operator fixing it is usually not the
+    person who wrote it.
+    """
+    if not isinstance(document, Mapping):
+        raise PolicyError("a policy must be a mapping at the top level")
+
+    default = str(document.get("default", "deny"))
+    if default != "deny":
+        raise PolicyError(
+            "policy.default must be 'deny'. An allow-by-default perimeter is not a "
+            "perimeter, and this project will not pretend otherwise."
+        )
+
+    classes = _parse_classes(_require_mapping(document.get("classes"), "classes"))
+    if not classes:
+        raise PolicyError("a policy must declare at least one class")
+
+    substrates = _parse_substrates(_require_sequence(document.get("substrates"), "substrates"))
+    known = {s.id for s in substrates}
+    rules = _parse_rules(_require_sequence(document.get("rules"), "rules"), known)
+    egress = _parse_egress(_require_mapping(document.get("egress"), "egress"), known)
+    tools = _parse_tools(_require_mapping(document.get("tools"), "tools"))
+
+    policy = Policy(
+        version=int(document.get("version", 1)),
+        classes=classes,
+        substrates=substrates,
+        rules=rules,
+        egress=egress,
+        tools=tools,
+        source=source,
+    )
+
+    # A rule that allows a substrate which cannot legally hold its class is not a
+    # typo the perimeter should quietly work around: it means the author believes
+    # something false about where their material goes.
+    for rule in rules:
+        for sid in rule.allow:
+            sub = policy.substrate(sid)
+            if sub and not sub.can_hold(rule.klass):
+                raise PolicyError(
+                    f"{rule.id} allows '{sid}' for class {rule.klass.label}, but that "
+                    f"substrate is capped at {sub.max_class.label}"
+                )
+
+    return policy
+
+
+def load_policy(path: str | Path) -> Policy:
+    """Read and validate a policy file.
+
+    Raises:
+        PolicyError: the file is missing, unreadable, not valid YAML, or does
+            not satisfy the schema. Never returns a partially valid policy.
+    """
+    p = Path(path).expanduser()
+    try:
+        raw = p.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise PolicyError(f"no policy at {p}") from exc
+    except OSError as exc:
+        raise PolicyError(f"cannot read policy at {p}: {exc}") from exc
+
+    try:
+        document = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        raise PolicyError(f"{p} is not valid YAML: {exc}") from exc
+
+    return parse_policy(document or {}, source=str(p))
+
+
+def default_policy_document(
+    *,
+    local_endpoint: str = "http://localhost:11434",
+    local_model: str = "qwen2.5:14b",
+) -> dict[str, Any]:
+    """The policy ``annona init`` writes, as a document.
+
+    It is deliberately usable and deliberately strict: everything under the home
+    directory is internal, credentials and keys are unreadable by any tool, and
+    nothing is registered that could send material outside the machine. Adding a
+    remote substrate is an explicit act, performed by someone who then owns the
+    consequence.
+    """
+    return {
+        "version": 1,
+        "default": "deny",
+        "classes": {
+            "restricted": {
+                "paths": ["~/.ssh/**", "~/.gnupg/**", "~/.aws/**", "~/.config/gcloud/**"],
+                "patterns": [
+                    r"[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]",
+                    r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+                    r"\bIT\d{2}[A-Z]\d{10}[0-9A-Z]{12}\b",
+                ],
+            },
+            "internal": {"paths": ["~/**"]},
+            "public": {"default": True},
+        },
+        "substrates": [
+            {
+                "id": "local-gpu",
+                "kind": "ollama",
+                "endpoint": local_endpoint,
+                "model": local_model,
+                "jurisdiction": "on-prem",
+                "max_class": "restricted",
+                "tools": True,
+                "context_window": 32768,
+                "cost_per_mtok": 0.0,
+                "quality": 60,
+                "probe": True,
+            }
+        ],
+        "rules": [
+            {"match": {"class": "restricted"}, "allow": ["local-gpu"], "on_unavailable": "hold"},
+            {"match": {"class": "internal"}, "allow": ["local-gpu"], "on_unavailable": "hold"},
+            {
+                "match": {"class": "public"},
+                "allow": ["local-gpu"],
+                "on_unavailable": "hold",
+                "prefer": "cost",
+            },
+        ],
+        "egress": {"brief": {"produced_by": "local-gpu", "max_tokens": 512, "must_clear": True}},
+        "tools": {
+            "allow": {
+                "document_reader": ["~/Documents/**", "~/Downloads/**"],
+                "explorer": ["~/Documents/**", "~/Downloads/**"],
+                "filesystem": ["~/Documents/**", "~/Downloads/**"],
+            },
+            "deny_paths": [
+                "~/.ssh/**",
+                "~/.gnupg/**",
+                "~/.aws/**",
+                "~/.config/gcloud/**",
+                "~/.annona/**",
+                "~/.akaion/**",
+                "**/.env",
+                "**/.env.*",
+                "**/id_rsa*",
+                "**/*.pem",
+            ],
+        },
+    }
+
+
+def default_policy(
+    *,
+    local_endpoint: str = "http://localhost:11434",
+    local_model: str = "qwen2.5:14b",
+) -> Policy:
+    """The shipped default policy, already validated."""
+    return parse_policy(
+        default_policy_document(local_endpoint=local_endpoint, local_model=local_model),
+        source="<default>",
+    )
+
+
+def write_default_policy(
+    path: str | Path,
+    *,
+    local_endpoint: str = "http://localhost:11434",
+    local_model: str = "qwen2.5:14b",
+) -> Path:
+    """Write the default policy to ``path``, creating parents. Never overwrites."""
+    p = Path(path).expanduser()
+    if p.exists():
+        return p
+    p.parent.mkdir(parents=True, exist_ok=True)
+    header = (
+        "# Annona policy — what may run, where, and what may cross.\n"
+        "# Every decision the perimeter takes is a function of this file.\n"
+        "# Reference: https://github.com/Akaion-repos/annona/blob/main/docs/design/hld.md\n\n"
+    )
+    body = yaml.safe_dump(
+        default_policy_document(local_endpoint=local_endpoint, local_model=local_model),
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    p.write_text(header + body, encoding="utf-8")
+    return p

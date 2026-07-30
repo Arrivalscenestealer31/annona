@@ -32,6 +32,7 @@ Supported providers:
 """
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
@@ -45,6 +46,7 @@ from runner.capability.backends import (
 )
 from runner.capability.backends.echo import script_from_config
 from runner.capability.tooling import PermissionGate, RegistryToolExecutor
+from runner.kernel.errors import ConfigurationError
 from runner.kernel.ports import InferenceBackend
 
 from .cloud_client import AIBackendClient
@@ -437,10 +439,27 @@ Return the result in a structured format.""".format(
         only wires ports to adapters — the loop decides what happens next, and
         the L1 adapter knows how to talk to the provider.
 
+        Two wirings are possible, and which one is used is a deployment
+        decision rather than a code path the caller picks:
+
+        **Enforced.** A policy exists (``~/.annona/policy.yaml``, or
+        ``perimeter.enabled: true`` in the config). Placement, default-deny
+        clearance and the ledger are in the loop, and the ``ai.provider``
+        setting is ignored — the policy decides where each turn runs.
+
+        **Legacy.** No policy. The configured provider serves every turn and
+        the allow-by-default permission manager gates tools, which is what an
+        existing installation has always done.
+
         Returns:
             ``{"response": str, "iterations": int, "tool_calls": [...]}`` — the
-            same shape this method has always returned.
+            same shape this method has always returned, plus ``placement`` and
+            ``ledger`` keys when the perimeter is enforcing.
         """
+        enforcement = self._build_enforcement()
+        if enforcement is not None:
+            return self._reason_enforced(enforcement, prompt, context, tools, max_iterations)
+
         backend = self.build_backend()
 
         if backend is None:
@@ -455,6 +474,68 @@ Return the result in a structured format.""".format(
             max_tokens=self.max_tokens,
         )
         return loop.run(prompt, context, max_iterations).to_dict()
+
+    # ── The enforced path ─────────────────────────────────────────────────────
+
+    def _build_enforcement(self):
+        """Assemble the perimeter for this run, or ``None`` to stay legacy.
+
+        Absence of a policy file is not treated as "enforce with defaults":
+        turning a working installation into a default-deny one because a file
+        appeared elsewhere would be a hostile upgrade. It is turned on by
+        writing a policy (``annona init``) or by asking for it in the config.
+        """
+        from runner.services.enforcement import Enforcement, policy_path
+
+        perimeter = self.config.get("perimeter", {}) if isinstance(self.config, dict) else {}
+        configured = perimeter.get("enabled")
+        path = Path(perimeter.get("policy") or policy_path())
+
+        if configured is False:
+            return None
+        if not configured and not path.exists():
+            return None
+
+        try:
+            return Enforcement.for_run(policy_file=path if path.exists() else None)
+        except Exception as exc:  # noqa: BLE001 - fail closed, loudly
+            # A perimeter that cannot be built must stop the run, not fall back
+            # to the unenforced path: the operator asked for enforcement, and
+            # quietly not enforcing is the one outcome they cannot detect.
+            raise ConfigurationError(f"the perimeter could not be assembled: {exc}") from exc
+
+    def _reason_enforced(
+        self,
+        enforcement,
+        prompt: str,
+        context: Dict[str, Any],
+        tools,
+        max_iterations: int,
+    ) -> Any:
+        """Run with placement, default-deny clearance and a ledger."""
+        # One routing backend, not one per call site: it carries the placement
+        # of the last turn, and a fresh instance would have forgotten it.
+        routing = enforcement.backend()
+
+        loop = AgentLoop(
+            routing,
+            enforcement.executor(RegistryToolExecutor(tools)),
+            enforcement.gate(),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+
+        result = loop.run(prompt, context, max_iterations).to_dict()
+
+        placement = routing.last_placement
+        result["placement"] = {
+            "class": enforcement.klass.label,
+            "outcome": placement.outcome if placement else "none",
+            "substrate": placement.substrate if placement else "",
+            "reason": placement.reason if placement else "",
+        }
+        result["ledger"] = {"path": str(enforcement.ledger.path), "head": enforcement.ledger.head}
+        return result
 
     def _agentic_loop_generic(self, prompt: str, context: Dict[str, Any], tools) -> Any:
         """Fallback for providers with no tool-use adapter yet."""

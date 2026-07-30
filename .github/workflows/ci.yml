@@ -73,6 +73,52 @@ jobs:
         # credentials and no network access.
         run: python -m runner.demo --check
 
+  image:
+    name: container · arm64 + amd64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The appliance target is a DGX Spark, which is arm64. An image that only
+      # builds for amd64 fails on the customer's hardware and nowhere else, so
+      # both architectures are built on every push rather than at release time.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (arm64 + amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64,linux/amd64
+          push: false
+          load: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A build that succeeds proves nothing an operator cares about. Load the
+      # native image and exercise it: unprivileged user, policy on a volume,
+      # ledger tamper-evidence, placement inside the container.
+      - name: Build for this runner
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: annona:dev
+          cache-from: type=gha
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
+      - name: Container acceptance tests
+        env:
+          ANNONA_CONTAINER_TESTS: "1"
+        run: python -m pytest -m container -v
+
   docs:
     name: docs
     runs-on: ubuntu-latest

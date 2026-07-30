@@ -22,6 +22,7 @@ Endpoints:
   GET  /            → ui/dist/index.html (se la UI è stata buildata)
 """
 
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -296,12 +297,18 @@ class LocalAPIServer:
         auth: Optional[AuthManager] = None,
         port: int = 7070,
         cloud_enabled: bool = False,
+        host: Optional[str] = None,
     ):
         self.brain = brain
         self.sync = sync
         self.auth = auth
         self.port = port
         self.cloud_enabled = cloud_enabled
+        # Loopback everywhere except in a container, where loopback would mean
+        # "reachable by nothing". ANNONA_BIND is set by the image, never by a
+        # default, so a laptop install cannot start listening on the LAN by
+        # accident — the daemon opens no port to the world unless asked.
+        self.host = host or os.getenv("ANNONA_BIND", "127.0.0.1")
         self._thread: Optional[threading.Thread] = None
         self._server: Optional[uvicorn.Server] = None
 
@@ -309,7 +316,7 @@ class LocalAPIServer:
         app = create_app(self.brain, self.sync, self.auth, cloud_enabled=self.cloud_enabled)
         config = uvicorn.Config(
             app,
-            host="127.0.0.1",
+            host=self.host,
             port=self.port,
             log_level="warning",  # silenzia i log HTTP nel terminale del runner
             access_log=False,

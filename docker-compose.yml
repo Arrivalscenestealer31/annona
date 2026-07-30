@@ -1,0 +1,129 @@
+# Annona appliance — the kernel and its local model, side by side.
+#
+#   docker compose up -d                 # kernel + Ollama (laptop, Mac mini, dev box)
+#   docker compose --profile vllm up -d   # kernel + vLLM   (DGX Spark, GPU server)
+#
+# The split is the point: only the inference service sees the GPU, only the
+# kernel sees the data, and the two talk over a private network with no route
+# to the internet. Adding a remote substrate is a policy edit, not a compose
+# edit — which is what "one binary, one release, three topologies" means in
+# practice.
+
+name: annona
+
+services:
+  annona:
+    image: ghcr.io/akaion-repos/annona:${ANNONA_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: annona
+    restart: unless-stopped
+    # No GPU, no root, no capabilities. The daemon reads your files and decides
+    # where work runs; it has no reason to be able to do anything else.
+    user: "10001:10001"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:size=64m
+    environment:
+      ANNONA_HOME: /home/annona/.annona
+      AKAION_HOME: /home/annona/.annona
+      AKAION_BRAIN_DIR: /home/annona/vault
+      AKAION_LOG_LEVEL: ${AKAION_LOG_LEVEL:-INFO}
+      ANNONA_BIND: 0.0.0.0
+    volumes:
+      # The policy, the ledger and the vault are the customer's. They live on
+      # volumes so they survive an image upgrade and can be backed up without
+      # touching the runtime.
+      - annona-home:/home/annona/.annona
+      - annona-vault:/home/annona/vault
+      # Mount the material the agent is allowed to read, read-only, and name the
+      # same path in the policy's classes. Read-only here means a tool bug
+      # cannot write to it even if the policy is wrong.
+      - ${ANNONA_DATA:-./data}:/data:ro
+    ports:
+      # Bound to loopback on the host: reachable from the machine and from a
+      # tunnel, never from the LAN. Change this deliberately or not at all.
+      - "127.0.0.1:7070:7070"
+    networks: [annona]
+    depends_on:
+      ollama:
+        condition: service_started
+        required: false
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: annona-ollama
+    restart: unless-stopped
+    profiles: ["", "ollama"]
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    volumes:
+      - ollama-models:/root/.ollama
+    networks: [annona]
+    # No published port: the model server is reachable from the kernel and from
+    # nothing else. If you need to `ollama pull`, use `docker compose exec`.
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # The appliance profile: vLLM on a DGX-class box. Same kernel image, same
+  # policy schema, different substrate — which is the claim the project makes
+  # about deployment, tested rather than asserted.
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: annona-vllm
+    profiles: ["vllm"]
+    restart: unless-stopped
+    command:
+      - --model=${VLLM_MODEL:-Qwen/Qwen2.5-14B-Instruct-AWQ}
+      - --served-model-name=${VLLM_SERVED_NAME:-local}
+      - --max-model-len=${VLLM_MAX_LEN:-32768}
+      - --gpu-memory-utilization=${VLLM_GPU_UTIL:-0.85}
+      - --enable-auto-tool-choice
+      - --tool-call-parser=hermes
+    environment:
+      HF_HOME: /models
+    volumes:
+      - vllm-models:/models
+    networks: [annona]
+    ipc: host
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/v1/models || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  annona:
+    driver: bridge
+    # No inter-container traffic beyond this network, and no route out of it
+    # except the one the host provides. Egress control is the policy's job; this
+    # is the floor under it.
+    internal: false
+
+volumes:
+  annona-home:
+  annona-vault:
+  ollama-models:
+  vllm-models:

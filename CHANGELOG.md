@@ -6,6 +6,59 @@ Notable changes to this project. Format based on
 
 ## [Unreleased]
 
+### The perimeter, built: placement, classification, and a verifiable record
+
+Phases F0 through F3 of the HLD. The kernel Annona is named after now exists:
+every inference and every tool call is classified, placed, enforced and
+recorded, and the acceptance run that proves it takes ten seconds on a fresh
+machine.
+
+**Three new layers under L2**, each depending only inward and checked by five
+new import contracts:
+
+- `runner/policy` — the policy model and its loader (every rejection names the
+  offending key), a classifier that considers paths, symlink targets, content
+  patterns and paths *named in a prompt*, the monotone working set, a
+  **default-deny** tool gate, and the executor decorator that taints a run with
+  what its tools actually returned.
+- `runner/placement` — substrate health with an active probe and a circuit
+  breaker, the placement engine, and the routing backend that enforces the
+  decision. **Failover recomputes placement inside the same rule**: it may cost
+  latency, money or model quality, never jurisdiction.
+- `runner/audit` — an append-only, hash-chained ledger. `annona verify` checks
+  it offline and distinguishes a rewritten entry from a deleted one, a reordered
+  one and a corrupt line.
+
+**Briefs.** When no permitted substrate is available and the policy allows it, a
+local model writes a summary, which is then reclassified from scratch. A brief
+that is no less sensitive than the material is held rather than sent — the
+instruction to the model is the cheap layer, the reclassification is the
+control. Briefs are never permitted for `restricted`, and the loader refuses a
+policy that tries.
+
+**New commands**: `annona policy init|show|validate|test`, `annona substrates`,
+`annona why <step>`, `annona verify`, `annona audit --held`.
+
+**Containers.** A multi-stage image built and tested for `linux/arm64` (a DGX
+Spark is arm64; an amd64-only image silently does not run on a GB10) and
+`linux/amd64`, running unprivileged, with no GPU access and no policy of its
+own. `docker-compose.yml` brings up the kernel with Ollama, or with vLLM under
+`--profile vllm`. `deploy/verify_appliance.py` is the nine-check acceptance run
+an operator executes before handing a box over — including the commercial test:
+with the GPU down, restricted work is **held, not rerouted**.
+
+**Tests**: 490 offline, plus 18 opt-in against a real local model
+(`ANNONA_LIVE_OLLAMA=1`) and a real Docker daemon (`ANNONA_CONTAINER_TESTS=1`).
+The placement conformance matrix covers three classes against five liveness
+states; the leak canary asserts a number rather than an argument.
+
+**Fixed — `requirements.txt` had been unsatisfiable since datapizza-ai was
+adopted.** pydantic was pinned to 2.7.1 while `datapizza-ai-core` requires
+>= 2.10.5, so `pip install -r requirements.txt` failed on any clean machine.
+Nobody had noticed because every developer environment was built from
+`pyproject.toml`. The container build is what found it, which is the argument
+for the container build being part of CI.
+
 ### Renamed: Annona — a sovereign execution kernel
 
 The project is **Annona** — after the *cura annonae*, the office that kept Rome

@@ -1008,6 +1008,12 @@ app.add_typer(note_app, name="note")
 app.add_typer(sync_app, name="sync")
 app.add_typer(cloud_app, name="cloud")
 
+# The perimeter: policy, substrates, why, verify, audit. Registered from its own
+# module so the five commands that carry the sovereignty claim stay readable.
+from runner.cli_perimeter import register as _register_perimeter  # noqa: E402
+
+_register_perimeter(app)
+
 
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):

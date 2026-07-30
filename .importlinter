@@ -64,3 +64,60 @@ forbidden_modules =
     openai
     google
     httpx
+
+; ─────────────────────────────────────────────────────────────────────────────
+; L2 — the perimeter: policy, placement, audit.
+;
+; The decision layer must not be able to reach an adapter. If it could, the
+; obvious shortcut ("no permitted substrate is up, so call the provider
+; directly") would be one import away, and no reviewer would find it. Keeping
+; the layers apart is what makes "failover cannot widen the permitted set" a
+; structural property rather than a promise about the current code.
+; ─────────────────────────────────────────────────────────────────────────────
+[importlinter:contract:policy-above-kernel]
+name = L2 policy depends only inward on L0
+type = layers
+layers =
+    runner.policy
+    runner.kernel
+
+[importlinter:contract:placement-above-policy]
+name = L2 placement depends on policy and the kernel, never outward
+type = layers
+layers =
+    runner.placement
+    runner.policy
+    runner.kernel
+
+[importlinter:contract:audit-is-independent]
+name = L2 audit depends on nothing but the kernel
+type = layers
+layers =
+    runner.audit
+    runner.kernel
+
+[importlinter:contract:perimeter-knows-no-adapters]
+name = L2 policy, placement and audit cannot reach an L1 adapter
+type = forbidden
+source_modules =
+    runner.policy
+    runner.placement
+    runner.audit
+forbidden_modules =
+    runner.capability
+    runner.agent
+    runner.tools
+    runner.brain
+    runner.sync
+
+[importlinter:contract:perimeter-has-no-vendors]
+name = L2 imports no provider SDK
+type = forbidden
+source_modules =
+    runner.policy
+    runner.audit
+forbidden_modules =
+    anthropic
+    openai
+    google
+    httpx

@@ -36,6 +36,34 @@ class BackendUnavailableError(RunnerError):
     """
 
 
+class PlacementHeldError(BackendUnavailableError):
+    """No permitted substrate could take this step, so it was not taken.
+
+    Deliberately a subclass of :class:`BackendUnavailableError`: to the agent
+    loop, "the policy will not let this run anywhere" and "the backend is down"
+    have the same correct response — stop, keep what you have, do not improvise.
+    Everything that distinguishes the two lives in the ledger and in the
+    attached :class:`~runner.kernel.types.Placement`.
+
+    This is the error that must never be caught and retried against a different
+    substrate. Failover may cost latency, money or model quality; it may not
+    cost jurisdiction.
+    """
+
+    def __init__(self, message: str, placement: object | None = None) -> None:
+        super().__init__(message)
+        self.placement = placement
+
+
+class PolicyError(ConfigurationError):
+    """A policy file is missing, malformed, or internally inconsistent.
+
+    Fatal, like every configuration error: a perimeter that starts with a policy
+    it could not parse is worse than one that refuses to start, because it looks
+    like it is working.
+    """
+
+
 class ToolNotFoundError(RunnerError):
     """A tool was requested by name and no such tool is registered."""
 

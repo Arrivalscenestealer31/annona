@@ -10,50 +10,58 @@
 # Removed in Phase 0: `asyncio==3.4.3` (asyncio is in the standard library; the
 # PyPI package of that name is a 2015 backport that shadows it), plus duplicate
 # pins for rich, click and typer.
+#
+# Regenerated in Phase 1 from the environment the test suite actually runs in.
+# The previous set had been unsatisfiable since datapizza-ai was adopted —
+# pydantic was pinned to 2.7.1 while datapizza-ai-core requires >= 2.10.5 — so
+# `pip install -r requirements.txt` failed on a clean machine and nobody
+# noticed, because every developer had an environment built from pyproject.
+# The container build is what found it, which is an argument for the container
+# build being part of CI.
 
 # Agent vocabulary and provider adapters — see docs/adr/0001-adopt-datapizza-ai.md
 datapizza-ai-core==0.1.3
 
 # CLI + TUI
-typer==0.12.3
-click==8.1.7
-rich==13.7.1
+typer==0.25.1
+click==8.4.0
+rich==15.0.0
 textual>=0.80.0
-inquirer==3.2.4
+inquirer>=3.2.4
 
 # Config + validation
-pydantic==2.7.1
-pydantic-settings==2.2.1
-python-dotenv==1.0.1
-PyYAML==6.0.1
+pydantic==2.13.4
+pydantic-settings==2.14.1
+python-dotenv==1.2.2
+PyYAML==6.0.3
 
 # HTTP
-httpx==0.27.0
-aiohttp==3.9.5
-websockets==12.0
+httpx==0.28.1
+aiohttp>=3.9.5
+websockets==16.0
 
 # Remote inference providers (optional at runtime; pinned here for bundles)
-openai==1.30.1
+openai>=1.30.1
 anthropic==0.25.7
-google-generativeai==0.5.4
+google-generativeai>=0.5.4
 
 # Local API server (brain + sync UI)
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
+fastapi==0.136.1
+uvicorn[standard]==0.47.0
 
 # Document parsing
-pdfplumber>=0.11.0
+pdfplumber==0.11.9
 pypdf>=4.0.0
 python-docx>=1.1.0
 openpyxl>=3.1.0
 
 # File & system
-watchdog==4.0.0
-psutil==5.9.8
+watchdog==6.0.0
+psutil>=5.9.8
 
 # Auth & security
-PyJWT==2.8.0
-cryptography==42.0.7
+PyJWT==2.13.0
+cryptography==48.0.0
 
 # Logging
-loguru==0.7.2
+loguru==0.7.3

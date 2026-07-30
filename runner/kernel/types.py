@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any, Literal
 
 from datapizza.type import Block
@@ -27,10 +28,15 @@ from datapizza.type import Block
 __all__ = [
     "AgentResult",
     "Capabilities",
+    "Clearance",
     "Completion",
     "CompletionRequest",
     "GrammarSupport",
+    "Outcome",
+    "Placement",
+    "Requirement",
     "Role",
+    "SensitivityClass",
     "StopReason",
     "ToolCall",
     "ToolInvocation",
@@ -206,6 +212,122 @@ class Completion:
     def wants_tools(self) -> bool:
         """Whether the loop should execute tools and continue."""
         return self.stop_reason == "tool_use" and bool(self.tool_calls)
+
+
+# ── Sovereignty: classes, clearances, placements ──────────────────────────────
+
+
+class SensitivityClass(IntEnum):
+    """How sensitive a piece of material is, and therefore where it may go.
+
+    Ordered on purpose, and compared as an order everywhere: a substrate may
+    handle a step when ``step_class <= substrate.max_class``. Making this an
+    :class:`enum.IntEnum` rather than a set of strings is what lets the
+    monotonicity invariant — a working set's class never decreases — be stated
+    as ``max()`` and checked in one line.
+
+    The three levels are deliberately few. Every classification scheme with
+    seven levels is used with two.
+    """
+
+    PUBLIC = 0
+    """No restriction. May cross to any registered substrate."""
+
+    INTERNAL = 1
+    """Organisational material. May leave the machine, not the jurisdiction."""
+
+    RESTRICTED = 2
+    """Privileged material. Does not leave the perimeter, ever, by any route."""
+
+    @property
+    def label(self) -> str:
+        """Lowercase name, as it appears in policy files and in the ledger."""
+        return self.name.lower()
+
+    @classmethod
+    def parse(cls, value: str | int | SensitivityClass) -> SensitivityClass:
+        """Coerce a policy-file value into a class, strictly.
+
+        Unknown values raise rather than defaulting: silently reading an
+        unrecognised class as ``public`` is precisely the failure mode this
+        project exists to prevent.
+        """
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, int) and not isinstance(value, bool):
+            try:
+                return cls(value)
+            except ValueError as exc:  # pragma: no cover - defensive
+                raise ValueError(f"unknown sensitivity class: {value!r}") from exc
+        if isinstance(value, str):
+            try:
+                return cls[value.strip().upper()]
+            except KeyError as exc:
+                raise ValueError(f"unknown sensitivity class: {value!r}") from exc
+        raise ValueError(f"unknown sensitivity class: {value!r}")
+
+
+Outcome = Literal["cleared", "held", "placed", "queued", "briefed"]
+"""What the perimeter decided. ``held`` is a first-class result, not an error."""
+
+
+@dataclass(frozen=True, slots=True)
+class Clearance:
+    """The perimeter's decision on a single tool call.
+
+    ``reason`` is written for a human reading the ledger six months later, so it
+    names the rule that decided, not the code path that ran.
+    """
+
+    permitted: bool
+    klass: SensitivityClass
+    reason: str
+    rule_id: str = ""
+
+    @property
+    def outcome(self) -> Outcome:
+        return "cleared" if self.permitted else "held"
+
+
+@dataclass(frozen=True, slots=True)
+class Requirement:
+    """What a step needs from a substrate before it can be placed there.
+
+    Placement is an intersection of three things — what the policy permits, what
+    the substrate can do, and whether it is up — and this is the second one.
+    """
+
+    tools: bool = False
+    """The step will offer tools, so the substrate must support tool use."""
+
+    min_context: int = 0
+    """Minimum usable context window, in tokens. ``0`` means "do not care"."""
+
+
+@dataclass(frozen=True, slots=True)
+class Placement:
+    """Where a step is to run, and why that was the answer.
+
+    A placement is produced for *every* step, including refused ones: the record
+    of what was not allowed is the part an auditor reads first. ``candidates``
+    and ``rejected`` are kept so ``annona why`` can reconstruct the reasoning
+    without re-running the decision against a policy that may since have
+    changed.
+    """
+
+    outcome: Outcome
+    klass: SensitivityClass
+    substrate: str = ""
+    rule_id: str = ""
+    reason: str = ""
+    candidates: tuple[str, ...] = ()
+    rejected: tuple[tuple[str, str], ...] = ()
+    brief_of: str = ""
+
+    @property
+    def permitted(self) -> bool:
+        """Whether the step may proceed on :attr:`substrate`."""
+        return self.outcome in ("placed", "briefed")
 
 
 # ── Run result ────────────────────────────────────────────────────────────────

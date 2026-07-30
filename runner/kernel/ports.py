@@ -26,12 +26,22 @@ from runner.kernel.types import (
     Capabilities,
     Completion,
     CompletionRequest,
+    Placement,
+    Requirement,
+    SensitivityClass,
     ToolCall,
     ToolResult,
     ToolSpec,
 )
 
-__all__ = ["InferenceBackend", "PolicyGate", "ToolExecutor"]
+__all__ = [
+    "Classifier",
+    "InferenceBackend",
+    "Ledger",
+    "PlacementEngine",
+    "PolicyGate",
+    "ToolExecutor",
+]
 
 
 @runtime_checkable
@@ -90,12 +100,66 @@ class ToolExecutor(Protocol):
 class PolicyGate(Protocol):
     """Decides whether a tool call may proceed.
 
-    In Phase 0 this wraps the existing permission manager, which is
-    allow-by-default (see the gap table in the README). Phase 1 replaces the
-    adapter with a default-deny capability kernel; the port does not change,
-    which is the point of declaring it now.
+    Two implementations ship. ``PermissionGate`` (L1) wraps the legacy
+    allow-by-default permission manager and is what an existing installation
+    keeps using. ``PrefectGate`` (L2) is default-deny, classifies what the call
+    touches, and writes every decision to the ledger. The port is the same,
+    which is why the perimeter could be added without the loop noticing.
     """
 
     def permits(self, call: ToolCall) -> bool:
         """Return ``True`` if the call is allowed to run."""
+        ...
+
+
+@runtime_checkable
+class Classifier(Protocol):
+    """Assigns a sensitivity class to material entering the working set.
+
+    Implementations must be *total* and must fail upward: material that cannot
+    be classified is the most restrictive class, never the least. A classifier
+    that returns ``PUBLIC`` when it does not know is not a weaker perimeter, it
+    is no perimeter.
+    """
+
+    def classify_path(self, path: str) -> SensitivityClass:
+        """Class implied by a filesystem path, before anything is read."""
+        ...
+
+    def classify_content(self, content: str) -> SensitivityClass:
+        """Class implied by the content itself — identifiers, patterns, markers."""
+        ...
+
+
+@runtime_checkable
+class PlacementEngine(Protocol):
+    """Decides where a step may execute, or that it may not execute at all."""
+
+    def place(self, klass: SensitivityClass, requirement: Requirement) -> Placement:
+        """Choose a substrate for a step of ``klass``, or hold it.
+
+        Implementations never raise to signal refusal: a refusal is a
+        :class:`~runner.kernel.types.Placement` with outcome ``held``, because
+        it has to be recorded like any other decision.
+        """
+        ...
+
+
+@runtime_checkable
+class Ledger(Protocol):
+    """Append-only, tamper-evident record of every decision taken."""
+
+    def record(
+        self,
+        kind: str,
+        *,
+        outcome: str,
+        klass: SensitivityClass,
+        detail: dict[str, object] | None = None,
+        payload: str = "",
+        substrate: str = "",
+        rule_id: str = "",
+        step_id: str = "",
+    ) -> str:
+        """Append one entry and return its step id."""
         ...
