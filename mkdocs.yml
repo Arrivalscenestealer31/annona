@@ -51,6 +51,7 @@ nav:
       - Sovereign runtime: design/sovereign-runtime.md
       - Local interface: design/ui.md
   - Skills: skills.md
+  - Brand assets: assets/PROMPTS.md
   - Casi d'uso (IT): casi-duso.md
   - Research:
       - research/index.md
