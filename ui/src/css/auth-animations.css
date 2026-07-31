@@ -5,17 +5,16 @@
    ───────────────────────────────────────────── */
 
 :root {
-  --akaion-primary-blue: 220 100% 60%;
-  --akaion-electric-violet: 270 100% 70%;
-  --akaion-accent-red: 0 90% 65%;
+  /* Verdigris, off the mascot's armour. One accent, used sparingly: the
+     previous product signed every surface in electric violet, which reads
+     as a brand asking to be noticed rather than a tool being used. */
+  --an-accent:      172 38% 52%;
+  --an-accent-deep: 176 34% 40%;
+  --an-danger:      6 62% 58%;
   --auth-text: 0 0% 97%;
   --auth-text-subtle: 0 0% 55%;
-  --shadow-violet:
-    0 0 40px hsl(var(--akaion-electric-violet) / 0.32),
-    0 0 80px hsl(var(--akaion-electric-violet) / 0.12);
-  --shadow-blue:
-    0 0 40px hsl(var(--akaion-primary-blue) / 0.28),
-    0 0 80px hsl(var(--akaion-primary-blue) / 0.12);
+  /* Kept for the auth screen's ambient shapes only — never on a control. */
+  --shadow-ambient: 0 0 60px hsl(var(--an-accent) / 0.16);
 }
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
@@ -72,7 +71,7 @@
   transform: translateX(-50%);
   width: 520px;
   height: 520px;
-  background: hsl(var(--akaion-electric-violet) / 0.32);
+  background: hsl(var(--an-accent) / 0.32);
   opacity: 0.5;
 }
 
@@ -81,7 +80,7 @@
   right: -80px;
   width: 420px;
   height: 420px;
-  background: hsl(var(--akaion-primary-blue) / 0.28);
+  background: hsl(var(--an-accent-deep) / 0.28);
   opacity: 0.4;
   animation-delay: 2s;
 }
@@ -99,24 +98,19 @@
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 
-/* Primary CTA: pill, violet+blue gradient, glow. */
+/* Primary CTA: pill, one flat colour. */
 .ak-btn-primary {
   position: relative;
   width: 100%;
   height: 56px;
   border-radius: 999px;
-  border: 1px solid hsl(var(--akaion-electric-violet) / 0.45);
-  background: linear-gradient(
-    100deg,
-    hsl(var(--akaion-electric-violet)) 0%,
-    hsl(var(--akaion-primary-blue)) 100%
-  );
-  color: #fff;
+  border: 1px solid transparent;
+  background: hsl(var(--an-accent-deep));
+  color: #041210;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.1px;
   cursor: pointer;
-  box-shadow: var(--shadow-violet);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -126,8 +120,7 @@
 }
 
 .ak-btn-primary:hover {
-  filter: brightness(1.06);
-  box-shadow: var(--shadow-violet), var(--shadow-blue);
+  background: hsl(var(--an-accent));
 }
 
 .ak-btn-primary:active   { transform: scale(0.97); }
@@ -256,8 +249,8 @@
   width: 100%;
   height: 30px;
   border-radius: 8px;
-  border: 1px solid hsl(var(--akaion-electric-violet) / 0.35);
-  background: hsl(var(--akaion-electric-violet) / 0.10);
+  border: 1px solid hsl(var(--an-accent) / 0.35);
+  background: hsl(var(--an-accent) / 0.10);
   color: hsl(var(--auth-text));
   font-size: 11.5px;
   font-weight: 500;
@@ -267,16 +260,16 @@
 }
 
 .ak-cloud-badge__cta:hover {
-  background: hsl(var(--akaion-electric-violet) / 0.20);
+  background: hsl(var(--an-accent) / 0.20);
 }
 
 /* ── Error banner ────────────────────────────────────────────────────────── */
 
 .ak-auth-error {
   font-size: 12px;
-  color: hsl(var(--akaion-accent-red));
-  background: hsl(var(--akaion-accent-red) / 0.08);
-  border: 1px solid hsl(var(--akaion-accent-red) / 0.20);
+  color: hsl(var(--an-danger));
+  background: hsl(var(--an-danger) / 0.08);
+  border: 1px solid hsl(var(--an-danger) / 0.20);
   border-radius: 10px;
   padding: 9px 12px;
   text-align: center;

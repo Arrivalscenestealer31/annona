@@ -26,10 +26,10 @@ if [ ! -d "$ASSETS_DIR" ]; then
 fi
 
 # Tauri 2 bundle filename conventions:
-#   macOS (M-series): "Akaion Runner_<version>_aarch64.dmg"
-#   macOS (Intel):    "Akaion Runner_<version>_x64.dmg"
-#   Linux AppImage:   "Akaion Runner_<version>_amd64.AppImage"
-#   Windows NSIS:     "Akaion Runner_<version>_x64-setup.exe"
+#   macOS (M-series): "Annona_<version>_aarch64.dmg"
+#   macOS (Intel):    "Annona_<version>_x64.dmg"
+#   Linux AppImage:   "Annona_<version>_amd64.AppImage"
+#   Windows NSIS:     "Annona_<version>_x64-setup.exe"
 # .deb has no updater path (apt handles updates), so we skip it.
 declare -a PLATFORMS=(
   "darwin-aarch64|*aarch64.dmg"
@@ -38,7 +38,7 @@ declare -a PLATFORMS=(
   "windows-x86_64|*x64-setup.exe"
 )
 
-NOTES="Akaion Runner ${VERSION}"
+NOTES="Annona ${VERSION}"
 PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Build platforms object piece by piece to keep the JSON valid even if a
@@ -76,8 +76,15 @@ for entry in "${PLATFORMS[@]}"; do
 done
 
 if [ -z "$PLATFORM_ENTRIES" ]; then
-  echo "::error::no signed bundles found — cannot publish updater manifest" >&2
-  exit 1
+  # No signatures at all means TAURI_SIGNING_PRIVATE_KEY was not set for this
+  # build — the documented state before the signing keys exist, and the build
+  # step says so explicitly. That costs auto-update; it must not cost the
+  # release. This step used to exit 1 here, which failed the publish job and
+  # left four working bundles unreleased with every download link on the site
+  # pointing at a 404. An unsigned release with no manifest is a worse product
+  # than a signed one, and a better one than no product.
+  echo "::warning::no signed bundles — publishing without an updater manifest; installed apps will not auto-update to this version"
+  exit 0
 fi
 
 cat > "$ASSETS_DIR/latest.json" <<EOF

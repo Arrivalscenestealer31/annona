@@ -80,6 +80,9 @@ class RunnerDaemon:
             auth=self.auth_manager,
             port=local_port,
             cloud_enabled=cloud_enabled,
+            # The window asks the kernel questions through this executor; without
+            # it the API can read the perimeter but not run anything through it.
+            executor=self.executor,
         )
 
         signal.signal(signal.SIGINT, self._signal_handler)

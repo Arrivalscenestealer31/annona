@@ -15,7 +15,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-__all__ = ["AGENT_ROLE", "build_system_prompt"]
+__all__ = ["AGENT_ROLE", "LANGUAGE_RULE", "build_system_prompt"]
 
 AGENT_ROLE = (
     "You are an advanced local agent running on the user's machine. "
@@ -23,14 +23,25 @@ AGENT_ROLE = (
     "(PDF, DOCX, XLSX, CSV, code files), execute shell commands, and analyze content. "
     "When given a task, think step by step and use the appropriate tools. "
     "Be thorough: explore before reading, read before summarizing. "
-    # Small open-weight models drift language when the documents they read are
-    # not in the language of the request. Observed on qwen2.5:14b: an Italian
-    # question about an Italian file, answered in Thai — the content correct and
-    # the answer useless. One sentence fixes it, and a sovereign deployment is
-    # exactly where the model is small enough to need it.
-    "Always answer in the same language as the user's request, whatever language "
-    "the documents you read are written in. "
 )
+
+LANGUAGE_RULE = (
+    "Answer in the language the user wrote in. If the request is in Italian, the "
+    "entire reply is in Italian — including when a tool fails, when permission is "
+    "denied, and whatever language the documents you read are written in. Never "
+    "switch language."
+)
+"""Kept out of :data:`AGENT_ROLE` so it can be placed last.
+
+Small open-weight models drift language once tool results in another language
+enter the transcript. Observed twice on qwen2.5:14b: an Italian question about
+an Italian folder, answered in Thai — the content correct, the answer useless.
+The rule was already in the prompt when that happened; what changed is where it
+sits. Instructions at the end of a system prompt survive a long transcript;
+instructions in the middle are what the model has already stopped attending to
+by turn three. A deployment that is sovereign is a deployment whose model is
+small enough for this to matter.
+"""
 
 
 def build_system_prompt(context: Mapping[str, Any] | None) -> str:
@@ -42,7 +53,7 @@ def build_system_prompt(context: Mapping[str, Any] | None) -> str:
             run before it starts.
 
     Returns:
-        The full system prompt, ending in a ``Context:`` clause.
+        The full system prompt: role, context, then the language rule last.
     """
     if context:
         try:
@@ -52,4 +63,4 @@ def build_system_prompt(context: Mapping[str, Any] | None) -> str:
     else:
         rendered = "none"
 
-    return f"{AGENT_ROLE}Context: {rendered}"
+    return f"{AGENT_ROLE}Context: {rendered}\n\n{LANGUAGE_RULE}"

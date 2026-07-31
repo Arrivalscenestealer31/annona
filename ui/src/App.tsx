@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useRunner } from "./hooks/useRunner";
-import { BrainIcon, SyncIcon, TasksIcon, PluginsIcon, SettingsIcon } from "./components/ui/Icons";
+import { AskIcon, PerimeterIcon, BrainIcon, SyncIcon, TasksIcon, PluginsIcon, SettingsIcon } from "./components/ui/Icons";
+import AskView       from "./components/views/AskView";
+import PerimeterView from "./components/views/PerimeterView";
 import BrainView    from "./components/views/BrainView";
 import SyncView     from "./components/views/SyncView";
 import TasksView    from "./components/views/TasksView";
@@ -12,13 +14,17 @@ import { auth as authApi, runner as runnerApi, sync as syncApi, AuthStatus, Runn
 import "./App.css";
 import "./css/auth-animations.css";
 
-type View = "brain" | "sync" | "tasks" | "plugins"
+type View = "ask" | "perimeter" | "brain" | "sync" | "tasks" | "plugins"
 
-const NAV: { id: View; label: string; icon: React.FC<{ size?: number }> }[] = [
-  { id: "brain",   label: "Brain",   icon: BrainIcon },
-  { id: "sync",    label: "Sync",    icon: SyncIcon },
-  { id: "tasks",   label: "Runner",  icon: TasksIcon },
-  { id: "plugins", label: "Plugin",  icon: PluginsIcon },
+// The kernel first, the vault second. What somebody installed this for is
+// deciding where their work runs; the notes are what the previous product did.
+const NAV: { id: View; label: string; icon: React.FC<{ size?: number }>; section: string }[] = [
+  { id: "ask",       label: "Ask",       icon: AskIcon,       section: "Kernel" },
+  { id: "perimeter", label: "Perimeter", icon: PerimeterIcon, section: "Kernel" },
+  { id: "brain",     label: "Notes",     icon: BrainIcon,     section: "Workspace" },
+  { id: "sync",      label: "Sync",      icon: SyncIcon,      section: "Workspace" },
+  { id: "tasks",     label: "Tasks",     icon: TasksIcon,     section: "Workspace" },
+  { id: "plugins",   label: "Plugins",   icon: PluginsIcon,   section: "Workspace" },
 ]
 
 function readOnboardingDone(): boolean {
@@ -27,7 +33,7 @@ function readOnboardingDone(): boolean {
 
 export default function App() {
   const { status, start } = useRunner();
-  const [view, setView]               = useState<View>("brain");
+  const [view, setView]               = useState<View>("ask");
   const [authStatus, setAuthStatus]   = useState<AuthStatus | null>(null);
   const [mode, setMode]               = useState<RunnerMode | null>(null);
   const [bootChecked, setBootChecked] = useState(false);
@@ -194,16 +200,20 @@ export default function App() {
         </div>
 
         <nav className="sidebar-nav">
-          <div className="ak-nav-section">Workspace</div>
-          {NAV.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              className={`ak-nav-item ${view === id ? "active" : ""}`}
-              onClick={() => setView(id)}
-            >
-              <Icon size={15} />
-              {label}
-            </button>
+          {NAV.map(({ id, label, icon: Icon, section }, i) => (
+            <div key={id}>
+              {(i === 0 || NAV[i - 1].section !== section) && (
+                <div className="ak-nav-section">{section}</div>
+              )}
+              <button
+                className={`ak-nav-item ${view === id ? "active" : ""}`}
+                onClick={() => setView(id)}
+                style={{ width: "100%" }}
+              >
+                <Icon size={15} />
+                {label}
+              </button>
+            </div>
           ))}
 
           <div style={{ flex: 1 }} />
@@ -301,6 +311,8 @@ export default function App() {
           </div>
         ) : (
           <>
+            {view === "ask"       && <AskView />}
+            {view === "perimeter" && <PerimeterView />}
             {view === "brain"   && <BrainView />}
             {view === "sync"    && <SyncView />}
             {view === "tasks"   && <TasksView />}

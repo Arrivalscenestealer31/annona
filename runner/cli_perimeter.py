@@ -416,6 +416,61 @@ def audit(
         console.print(table)
 
 
+def pair(
+    show: bool = typer.Option(
+        False, "--show", help="Print the existing token instead of a new one"
+    ),
+    origin: list[str] = typer.Option(
+        None, "--origin", "-o", help="Web origin allowed to use this machine (repeatable)"
+    ),
+    revoke: bool = typer.Option(False, "--revoke", help="Delete the pairing; refuse every web app"),
+):
+    """🔗 Let a web app use this machine as its executor.
+
+    Prints a token to paste into the app. Until one exists, the daemon serves
+    only the window it ships with — a page open in your browser cannot reach it,
+    which is the correct default and the reason this is a command rather than a
+    setting that is already on.
+    """
+    from runner.pairing import DEFAULT_REMOTE_ORIGINS, Pairing, pairing_path
+
+    target = pairing_path()
+
+    if revoke:
+        if target.exists():
+            target.unlink()
+            console.print(f"🔗 [green]pairing revoked[/green] — {target} deleted")
+            console.print("   Every web app now has to pair again before it can run anything here.")
+        else:
+            console.print("[yellow]nothing to revoke — this machine is not paired[/yellow]")
+        raise typer.Exit(0)
+
+    if show:
+        existing = Pairing.load(target)
+        if existing is None:
+            console.print("[yellow]this machine is not paired[/yellow]")
+            console.print("   Create a token with: [cyan]annona pair[/cyan]")
+            raise typer.Exit(1)
+        console.print(f"\n🔗 [bold]token[/bold]  [cyan]{existing.token}[/cyan]")
+        console.print(f"   origins  {', '.join(existing.origins)}")
+        console.print(f"   file     [dim]{existing.path}[/dim]")
+        raise typer.Exit(0)
+
+    origins = tuple(origin) if origin else DEFAULT_REMOTE_ORIGINS
+    pairing = Pairing.create(target, origins=origins)
+
+    console.print(
+        "\n🔗 [bold]Paired.[/bold] Paste this token into the app's local-execution setting:\n"
+    )
+    console.print(f"   [cyan]{pairing.token}[/cyan]\n")
+    console.print(f"   allowed origins  {', '.join(pairing.origins)}")
+    console.print(f"   stored in        [dim]{pairing.path}[/dim] (mode 600)")
+    console.print(
+        "\n[dim]Anyone holding this token can run steps on this machine from a listed origin. "
+        "Revoke with `annona pair --revoke`; there is no recovery, only a new token.[/dim]"
+    )
+
+
 def register(app: typer.Typer) -> None:
     """Attach the perimeter commands to the main CLI.
 
@@ -429,3 +484,4 @@ def register(app: typer.Typer) -> None:
     app.command("why")(why)
     app.command("verify")(verify)
     app.command("audit")(audit)
+    app.command("pair")(pair)

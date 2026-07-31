@@ -49,6 +49,7 @@ nav:
       - Quickstart: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
       - Turning the perimeter on: getting-started/perimeter.md
+      - Executing for a cloud app: cloud-execution.md
   - Design:
       - High-level design: design/hld.md
       - Architecture as built: design/architecture.md

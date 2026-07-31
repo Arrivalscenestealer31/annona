@@ -801,4 +801,7 @@ def test_the_system_prompt_pins_the_answer_language():
     from runner.agent.prompt import build_system_prompt
 
     prompt = build_system_prompt(None)
-    assert "same language as the user's request" in prompt
+    assert "Answer in the language the user wrote in" in prompt
+    # Last, not merely present. It was present when the drift was observed; what
+    # it was not was the most recent thing the model had been told.
+    assert prompt.rstrip().endswith("Never switch language.")

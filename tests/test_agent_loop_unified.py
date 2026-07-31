@@ -426,7 +426,7 @@ class TestRequest:
 
 class TestSystemPrompt:
     def test_no_context_renders_as_none(self):
-        assert build_system_prompt(None).endswith("Context: none")
+        assert "Context: none" in build_system_prompt(None)
 
     def test_unserialisable_context_does_not_break_a_run(self):
         from pathlib import Path

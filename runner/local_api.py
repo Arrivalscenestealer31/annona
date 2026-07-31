@@ -38,6 +38,8 @@ from pydantic import BaseModel
 from .auth import AuthManager
 from .brain.manager import BrainManager
 from .brain.models import Note
+from .kernel_api import kernel_router
+from .pairing import LOCAL_ORIGINS, PairedOriginMiddleware
 from .sync.engine import SyncEngine
 
 # UI dist path: <runner-root>/ui/dist
@@ -94,22 +96,28 @@ def create_app(
     sync: SyncEngine,
     auth: Optional[AuthManager] = None,
     cloud_enabled: bool = False,
+    executor: Optional[object] = None,
 ) -> FastAPI:
-    app = FastAPI(title="Akaion Local API", version="0.1.0")
+    app = FastAPI(title="Annona local API", version="0.1.0")
 
+    # Local origins are this app talking to itself and stay unauthenticated.
     app.add_middleware(
         CORSMiddleware,
-        # Same-origin (7070) needs no CORS. 5173 is the Vite dev server.
-        # Tauri origins removed in Step 5 (desktop shell dropped).
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:7070",
-            "http://127.0.0.1:7070",
-        ],
+        allow_origins=list(LOCAL_ORIGINS),
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Anything else — a cloud app asking to use this machine as its executor —
+    # must be listed *and* present the token from `annona pair`. Added after the
+    # CORS middleware so it runs before it: Starlette applies middleware in
+    # reverse order of registration, and an unpaired origin must be refused
+    # rather than negotiated with.
+    app.add_middleware(PairedOriginMiddleware)
+
+    # The kernel's own surface: policy, substrates, ledger, and asking it
+    # something. Registered before the static mount at "/", which swallows
+    # anything registered after it.
+    app.include_router(kernel_router(executor))
 
     _auth = auth or AuthManager()
 
@@ -298,10 +306,12 @@ class LocalAPIServer:
         port: int = 7070,
         cloud_enabled: bool = False,
         host: Optional[str] = None,
+        executor: Optional[object] = None,
     ):
         self.brain = brain
         self.sync = sync
         self.auth = auth
+        self.executor = executor
         self.port = port
         self.cloud_enabled = cloud_enabled
         # Loopback everywhere except in a container, where loopback would mean
@@ -313,7 +323,13 @@ class LocalAPIServer:
         self._server: Optional[uvicorn.Server] = None
 
     def start(self):
-        app = create_app(self.brain, self.sync, self.auth, cloud_enabled=self.cloud_enabled)
+        app = create_app(
+            self.brain,
+            self.sync,
+            self.auth,
+            cloud_enabled=self.cloud_enabled,
+            executor=self.executor,
+        )
         config = uvicorn.Config(
             app,
             host=self.host,
