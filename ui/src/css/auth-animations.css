@@ -274,3 +274,15 @@
   padding: 9px 12px;
   text-align: center;
 }
+
+/* Waiting for a sign-in happening in another window, and the confirmation on
+   the tab that performed it. Not an error, so not styled like one. */
+.ak-auth-note {
+  font-size: 12px;
+  color: hsl(var(--auth-text-subtle));
+  background: hsl(var(--an-accent) / 0.08);
+  border: 1px solid hsl(var(--an-accent) / 0.22);
+  border-radius: 10px;
+  padding: 9px 12px;
+  text-align: center;
+}

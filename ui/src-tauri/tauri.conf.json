@@ -59,6 +59,9 @@
     }
   },
   "plugins": {
+    "shell": {
+      "open": "^http://localhost:7070/\\?signin=1$"
+    },
     "updater": {
       "active": true,
       "endpoints": [

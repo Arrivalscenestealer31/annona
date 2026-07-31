@@ -9,7 +9,7 @@ import TasksView    from "./components/views/TasksView";
 import PluginsView  from "./components/views/PluginsView";
 import WelcomeView, { ONBOARDING_FLAG } from "./components/views/WelcomeView";
 import UpdateBanner from "./components/UpdateBanner";
-import { fbAuth, gProvider, signInWithPopup } from "./lib/firebase";
+import { signIn, isSigninHandoff } from "./lib/signin";
 import { auth as authApi, runner as runnerApi, sync as syncApi, AuthStatus, RunnerMode } from "./api/runner";
 import "./App.css";
 import "./css/auth-animations.css";
@@ -78,8 +78,13 @@ export default function App() {
         if (cancelled) return;
         setAuthStatus(s);
         setMode(m);
-        // Welcome rule: only first launch AND not yet authenticated.
-        setShowWelcome(!readOnboardingDone() && !s.authenticated);
+        // Welcome rule: first launch and not yet authenticated — or this page
+        // was opened by the desktop app to sign in, in which case the screen
+        // with the button on it is the entire reason the tab exists. Without
+        // this the handoff opened straight into Ask and there was nothing to
+        // click; the onboarding flag is a fact about a previous visit, not
+        // about what this tab was opened for.
+        setShowWelcome(isSigninHandoff() || (!readOnboardingDone() && !s.authenticated));
         setBootChecked(true);
       } catch {
         if (!cancelled) setTimeout(check, 1000);
@@ -112,15 +117,8 @@ export default function App() {
   const handleSidebarCloudLogin = async () => {
     setCloudSyncing(true);
     try {
-      const cred    = await signInWithPopup(fbAuth, gProvider);
-      const token   = await cred.user.getIdToken();
-      const refresh = (cred.user as any).stsTokenManager?.refreshToken ?? "";
-      const s = await authApi.save({
-        firebase_token: token,
-        refresh_token:  refresh,
-        expires_in:     3600,
-        email:          cred.user.email ?? "",
-      });
+      // Same handoff as the welcome screen: a popup cannot open here.
+      const s = await signIn();
       setAuthStatus(s);
       try { localStorage.setItem(ONBOARDING_FLAG, "true"); } catch { /* */ }
       refreshMode();

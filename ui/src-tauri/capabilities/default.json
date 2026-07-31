@@ -21,6 +21,7 @@
         }
       ]
     },
+    "shell:allow-open",
     {
       "identifier": "shell:allow-kill",
       "allow": [
