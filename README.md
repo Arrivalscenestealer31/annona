@@ -270,14 +270,23 @@ forking anything.
 > model as well as to you — software intended for diagnosis is regulated as a
 > medical device, and calling it something else does not change that.
 
-## Working with the Italian open-source stack
+## Built on the Italian open-source stack
 
-Annona decides *where* work runs. It does not try to be every instrument used
-along the way, and the first one it plugs into is
-**[rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii)** by Simone Rizzo
-(Rizzo AI Academy, MIT): a 0.3B Italian PII model that runs on a CPU with no API
-key and recognises 22 categories, including *codice fiscale*, *partita IVA* and
-cadastral identifiers that no other open model covers.
+Annona is a kernel, not a monolith: it decides *where* work runs and delegates
+everything else. Two of the three things it delegates to are Italian open-source
+projects, and that is a choice rather than a coincidence — a sovereignty story
+told with somebody else's entire stack is a slide, not an argument.
+
+| | | |
+|---|---|---|
+| **[datapizza-ai](https://github.com/datapizza-labs/datapizza-ai)** | Datapizza Labs · MIT | the agent vocabulary underneath: message blocks, provider adapters, tool schemas. Annona builds on it rather than writing a fourth in-house framework — see [ADR 0001](docs/adr/0001-adopt-datapizza-ai.md) |
+| **[rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii)** | Simone Rizzo, Rizzo AI Academy · MIT | the redactor: 0.3B, CPU-only, 22 Italian categories including *codice fiscale*, *partita IVA* and cadastral identifiers that no other open model covers |
+| **Annona** | Akaion AI Lab · Apache-2.0 | the kernel: where each step runs, whether it may, and the record that it did |
+
+Neither is vendored. datapizza is a dependency with an ADR explaining the
+choice; rizzo-pii is reached over its documented HTTP contract by an adapter in
+`runner/capability/redactors/`, attributed in [`NOTICE`](NOTICE), and the
+layering means the decision layer cannot import it even by accident.
 
 The division of labour is clean, and it is the reason the two fit:
 
