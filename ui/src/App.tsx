@@ -276,7 +276,7 @@ export default function App() {
                 title="Coming soon"
                 style={{ cursor: "not-allowed", opacity: 0.55 }}
               >
-                About Akaion Runner
+                About Annona
               </button>
             </div>
           )}

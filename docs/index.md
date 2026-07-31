@@ -1,130 +1,208 @@
 ---
 hide:
   - navigation
+  - toc
 ---
 
-<div class="dg-hero" markdown="1">
-<span class="dg-hero__eyebrow">Akaion AI Lab · Apache-2.0</span>
+<div class="an-hero" markdown="1">
 
-<h1 class="dg-hero__title">Ann<span class="dg-hero__stamp">ona</span></h1>
+<img class="an-hero__mascot" src="assets/annona-mascot-512.png" alt="Annona">
 
-<p class="dg-hero__tagline">Where it runs is a decision.</p>
+<h1 class="an-hero__title">Annona</h1>
 
-<p class="dg-hero__sub">
-The sovereign execution kernel for AI agents. Annona takes a plan and, for every
-step, decides where it may run — your GPU, your cluster, or a frontier API —
-enforces the decision, executes it, and records it.
+<p class="an-hero__tagline">The sovereign execution kernel for AI agents</p>
+
+<p class="an-hero__sub">
+Every agent you deploy sends your material somewhere. Annona decides
+<strong>where each step may run</strong> — your GPU, your cluster, or a frontier
+API — enforces the decision, and writes it into a record you can verify.
 </p>
 
-<p class="dg-hero__meta">an-NO-na · Rome's grain administration — sourcing, routing, and the record of both</p>
+<div class="an-stats" markdown="1">
+<div class="an-stat"><b>per step</b><span>placement</span></div>
+<div class="an-stat"><b>default</b><span>deny</span></div>
+<div class="an-stat"><b>0</b><span>leak rate</span></div>
+<div class="an-stat"><b>559</b><span>tests</span></div>
+<div class="an-stat"><b>arm64</b><span>DGX-ready</span></div>
 </div>
 
-```bash
-git clone git@github.com:akaion-ai/annona.git
-cd annona && make setup
-make demo      # a real agentic run: no credentials, no network
-```
+<p class="an-cta" markdown="1">
+[⬇ Download the app](https://github.com/akaion-ai/annona/releases/latest){ .an-btn .an-btn--primary }
+[GitHub](https://github.com/akaion-ai/annona){ .an-btn }
+[Design of record](design/hld.md){ .an-btn }
+</p>
 
-## Why Rome kept its own grain
+<p class="an-hero__meta">Open source · Apache-2.0 · no telemetry · runs with no account · <em>an-NO-na</em>, the office that kept Rome fed</p>
 
-Agentic AI asks organisations to hand their internal systems to a remote model.
-For a law firm, a clinic, or an engineering practice, that trade is not available
-— the data is privileged by law.
-
-The usual answers are *powerful but not sovereign* (cloud copilots) or *sovereign
-but useless* (a local chatbot with access to nothing). Annona is the third
-option: the model may be remote, the **execution and the data are not** — and
-which of the two happens is decided per step, from policy, and written down.
-
-The *cura annonae* was the office that kept Rome fed. It decided where grain was
-sourced, which route it took, which granary held it and who received it, and it
-kept the record — because a republic cannot outsource what it cannot live
-without. Compute is now that input, and that is the vocabulary:
-
-<div class="dg-terms" markdown="1">
-<div class="dg-term"><div class="dg-term__name">placement</div><div class="dg-term__desc">where a step runs: local GPU, private cluster, frontier API</div></div>
-<div class="dg-term"><div class="dg-term__name">clearance</div><div class="dg-term__desc">the decision on a tool call, an egress, or a placement</div></div>
-<div class="dg-term"><div class="dg-term__name">ledger</div><div class="dg-term__desc">the hash-chained record of every decision</div></div>
-<div class="dg-term"><div class="dg-term__name">held</div><div class="dg-term__desc">a call the policy refused — never quietly rerouted</div></div>
 </div>
 
-## What a run looks like
+## Get the desktop app
 
-`make demo` drives a **real agentic loop** — real tool execution against real
-files, real policy checks — from a scripted backend, so it needs no API key and
-opens no socket.
+Ready to run, local by default: it registers nothing outside your machine until
+you declare it yourself.
+
+<div class="grid cards an-downloads" markdown>
+
+-   :material-microsoft-windows: **Windows**
+
+    ---
+
+    Per-user installer (`.exe`). No admin rights.
+
+    [Download .exe](https://github.com/akaion-ai/annona/releases/latest){ .an-btn .an-btn--primary }
+
+-   :material-apple: **macOS**
+
+    ---
+
+    Apple Silicon and Intel (`.dmg`). Unsigned during beta — right-click → **Open**.
+
+    [Download .dmg](https://github.com/akaion-ai/annona/releases/latest){ .an-btn .an-btn--primary }
+
+-   :material-linux: **Linux**
+
+    ---
+
+    Portable AppImage (`chmod +x` and run), or `.deb`.
+
+    [Download AppImage](https://github.com/akaion-ai/annona/releases/latest){ .an-btn .an-btn--primary }
+
+</div>
+
+Prefer a server? `docker compose up -d` brings up the kernel and a local model,
+arm64 or amd64 — see
+[deploying](https://github.com/akaion-ai/annona/blob/main/deploy/README.md).
+Prefer a terminal? `pip install annona`, then
+[turn the perimeter on](getting-started/perimeter.md) in five minutes.
+
+## How it works
+
+Four steps. Three never leave your machine, and the fourth happens only when the
+policy says it may.
+
+<div class="grid cards an-steps" markdown>
+
+-   **1 · Classify**
+
+    ---
+
+    Every path, every payload, every tool result gets a class — from where it
+    lives, what it contains, and what a prompt names. A run's class only ever
+    goes **up**.
+
+-   **2 · Place**
+
+    ---
+
+    From that class and the health of each substrate, the kernel picks where the
+    step may run. Nothing permitted available → the step is **held**, not
+    rerouted.
+
+-   **3 · Execute**
+
+    ---
+
+    Tools run behind a default-deny gate: one the policy does not name does not
+    run, deny beats allow, and symlinks are resolved to their targets.
+
+-   **4 · Record**
+
+    ---
+
+    Every decision — including every refusal — lands in a hash-chained ledger you
+    verify offline, with a command that contacts nobody.
+
+</div>
 
 ```
-1 · a task the policy permits
-  1. ok      explorer         {'operation': 'map', 'path': '…/documents'}
-  2. ok      document_reader  {'path': '…/reports/q1_report.txt'}
-  answer     Q1 2026: 142 open matters, 98 closed, EUR 412,000 …
-
-2 · a task the policy refuses
-  1. held    filesystem       {'operation': 'read', 'path': '~/.ssh/id_rsa'}
-     → {'error': 'Permission denied for tool: filesystem'}
+$ annona why step_7f3a
+step_7f3a  inference  HELD
+  class        restricted  (working set touched /mnt/pratiche/2026/BG-114.pdf)
+  rule         R-clienti  restricted → [local-gpu], on_unavailable: hold
+  candidates   local-gpu (unhealthy: connection refused since 14:02:11)
+  not chosen   frontier — max_class public < restricted
+  outcome      held at 14:03:07
+  ledger       #418  sha256:9c1f…a7  (chain verified)
 ```
 
-Nothing left the process. That is the product in one screen.
+That refusal **is** the product. A gateway in the same situation fails over to
+the frontier API and returns a good answer.
 
-## Where it runs
+## Why it exists
 
-Three topologies, **one binary, one release**. They differ in configuration —
-which backends are registered and what the policy permits — never in code. A fork
-per deployment is how sovereignty claims rot, so there isn't one.
+You have been told to pick one of three architectures: models **on-prem**
+(private, capped by your hardware), **frontier APIs** (excellent, and your
+material leaves), or **your own weights in your own cloud** (an honest compromise
+that costs an MLOps team).
 
-| | **Detached** | **Attached** | **Appliance** |
-|---|---|---|---|
-| Hardware | laptop, Mac mini | any | DGX-class, or EU colocation |
-| Control plane | none | Agents Studio, outbound-only | Agents Studio |
-| Inference | local only | local + remote, routed | local, remote by exception |
-| Network | may be air-gapped | outbound 443 only | outbound 443 only |
+The industry argues about which column wins. That argument is the mistake.
 
-Both ends are covered by tests: `tests/test_e2e_topologies.py` runs the detached
-path with no network at all, and the attached path against a live HTTP server
-implementing the documented three-endpoint contract.
+!!! quote ""
+    **The right column is a property of the request, not of the company.**
 
-## Start here
+Summarising a public tender is not the same problem as reasoning over a client's
+medical file, and the second does not become safe because procurement signed a
+DPA. One organisation needs all three columns, chosen per step, ten thousand
+times a day, by something that can prove afterwards what it chose.
+
+## What you can do with it
 
 <div class="grid cards" markdown>
 
-- **[Install](getting-started/install.md)** — native bundle or from source
-- **[Quickstart](getting-started/quickstart.md)** — first vault, first run
-- **[High-level design](design/hld.md)** — placement, the prefect, the DGX appliance
-- **[Architecture as built](design/architecture.md)** — what the code does today
-- **[Sovereign runtime](design/sovereign-runtime.md)** — where it is going, and the threat model
-- **[Research](research/index.md)** — what we are trying to prove, and what is not built
-- **[Decisions](adr/index.md)** — why it is shaped this way
+-   **Keep privileged work inside**
+
+    ---
+
+    A client matter, a clinical record, a personnel file: read it, reason over
+    it, and watch the frontier model that would have answered better simply not
+    be called.
+
+-   **Use the best model for everything else**
+
+    ---
+
+    Sovereignty is not a tax on all your traffic. A question with no client data
+    goes to the best model you registered, at the price you chose.
+
+-   **Answer with a frontier model anyway**
+
+    ---
+
+    A local PII model replaces the identifiers, the redacted question crosses,
+    and the answer is re-identified here from a mapping that never left.
+
+-   **Prove it afterwards**
+
+    ---
+
+    `annona verify`, `annona audit --held`, `annona why <step>` — an auditor's
+    three questions, answered offline.
 
 </div>
 
-## Honest status
+[Six use cases, each with the test that proves it](casi-duso.md){ .an-btn }
+[Skills, with a jurisdiction](skills.md){ .an-btn }
 
-This project publishes its gaps. The claim is *measurable* sovereignty, and a
-claim without a measurement is marketing.
+## Honest about what it is not
 
-| Gap | State |
-|---|---|
-| Policy is default-allow — an unknown tool is permitted | <span class="dg-pill dg-pill--open">open</span> |
-| Nothing classifies or gates what leaves toward a model provider | <span class="dg-pill dg-pill--open">open</span> |
-| "Your data does not leave" is an argument, not a measured number | <span class="dg-pill dg-pill--open">open</span> |
-| The ledger is a log file, not a verifiable artefact | <span class="dg-pill dg-pill--open">open</span> |
-| Placement is a config line, not a per-step policy decision | <span class="dg-pill dg-pill--open">open</span> |
-| Fully local mode can talk, but not act | <span class="dg-pill dg-pill--open">open</span> |
-| One agentic loop, provider-agnostic, enforced in CI | <span class="dg-pill dg-pill--cleared">done</span> |
-| Both topologies covered end to end | <span class="dg-pill dg-pill--cleared">done</span> |
+- **Pseudonymous is not anonymous.** Redaction reduces exposure; the mapping
+  exists, so it does not remove the need for a lawful basis.
+- **No confidential computing on a GB10.** Encrypted memory and GPU attestation
+  are real on HGX B200-class hardware, not on a DGX Spark. A privileged host
+  administrator can read memory — on-prem that administrator is the customer,
+  which is the point, but it belongs in the meeting rather than in an audit.
+- **The ledger has no external anchor yet.** Tamper-evident against edits,
+  deletions and reordering; a chain rebuilt wholesale by someone with write
+  access is not detectable, and a test says so.
+- **Small models still get tool arguments wrong.** Grammar-constrained decoding
+  is the next piece, and the project's research claim.
 
-Each open item has a metric and a phase attached — see
-[Research](research/index.md).
-
-!!! warning "Remote backends currently send the whole transcript"
-    With `ai.provider: akaion` or `anthropic`, tool results — the contents of
-    every file the agent read — are sent on the following turn. Local tool
-    execution is not local data handling. This is asserted by a test so it cannot
-    change unnoticed, and closing it is Phase 1.
+Every guarantee here has a test with its name on it, and every gap has a row in a
+table. That is the only way a vendor can ask to be believed about something a
+customer cannot watch happening.
 
 ---
 
-Annona is developed by **[Akaion AI Lab](https://akaion.com)** and released under
-Apache-2.0. It builds on [datapizza-ai](https://github.com/datapizza-labs/datapizza-ai)
-(MIT) — see [ADR 0001](adr/0001-adopt-datapizza-ai.md).
+Built by [Akaion AI Lab](https://akaion.com) on
+[datapizza-ai](https://github.com/datapizza-labs/datapizza-ai) · interoperates
+with [rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii) · Apache-2.0

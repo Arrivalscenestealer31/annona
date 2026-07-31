@@ -22,9 +22,11 @@
 
 📐 **[Read the high-level design](docs/design/hld.md)** — components, the placement algorithm, the DGX appliance, the threat model, and the numbers it is judged by
 
-[![RUN IT LOCALLY](https://img.shields.io/badge/▶_RUN_IT-LOCALLY-1F6F68?style=for-the-badge)](#try-it-in-sixty-seconds)
-[![DEPLOY ON A DGX](https://img.shields.io/badge/⬛_DEPLOY_ON-A_DGX-111?style=for-the-badge)](deploy/README.md)
-[![VERIFY AN APPLIANCE](https://img.shields.io/badge/✓_VERIFY-AN_APPLIANCE-8F7320?style=for-the-badge)](deploy/README.md#verifying-an-appliance-before-you-hand-it-over)
+[![DOWNLOAD FOR WINDOWS](https://img.shields.io/badge/⬇_DOWNLOAD_FOR-WINDOWS-0078D4?style=for-the-badge)](https://github.com/akaion-ai/annona/releases/latest)
+[![DOWNLOAD FOR MACOS](https://img.shields.io/badge/⬇_DOWNLOAD_FOR-MACOS-111?style=for-the-badge)](https://github.com/akaion-ai/annona/releases/latest)
+[![DOWNLOAD FOR LINUX](https://img.shields.io/badge/⬇_DOWNLOAD_FOR-LINUX-8F7320?style=for-the-badge)](https://github.com/akaion-ai/annona/releases/latest)
+
+🌐 **[akaion-ai.github.io/annona](https://akaion-ai.github.io/annona/)** — the site · 🐳 `docker compose up -d` · 🐍 `pip install annona`
 
 🐳 Container · 🖥️ CLI · 🧩 any OpenAI-compatible runtime — *an-NO-na*, the office that kept Rome fed
 
@@ -336,7 +338,23 @@ Three properties make this a control rather than a hope, and each is a test:
 Any redactor satisfying the same small protocol can be wired in its place — the
 policy names a provider, and the decision layer never learns which one.
 
-## Try it in sixty seconds
+## Get it
+
+### The desktop app
+
+| | | |
+|---|---|---|
+| **Windows** | per-user installer, no admin rights | [`Annona_*_x64-setup.exe`](https://github.com/akaion-ai/annona/releases/latest) |
+| **macOS** | Apple Silicon and Intel | [`Annona_*.dmg`](https://github.com/akaion-ai/annona/releases/latest) |
+| **Linux** | portable — `chmod +x` and run | [`Annona_*.AppImage`](https://github.com/akaion-ai/annona/releases/latest) |
+
+A tagged release builds all four targets and drafts a GitHub Release with the
+bundles attached. They are unsigned during beta: on macOS right-click →
+**Open** on first launch, on Windows SmartScreen → **More info** → **Run
+anyway**. The app is the same daemon with a window around it — the CLI, the
+policy and the ledger are identical.
+
+### From source, in sixty seconds
 
 ```bash
 git clone git@github.com:akaion-ai/annona.git

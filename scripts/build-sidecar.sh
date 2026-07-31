@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the akaion-runner Python daemon as a PyInstaller onefile binary,
+# Build the annona Python daemon as a PyInstaller onefile binary,
 # then rename it to the Tauri sidecar convention:
-#     ui/src-tauri/binaries/akaion-runner-<rust-target-triple>[.exe]
+#     ui/src-tauri/binaries/annona-<rust-target-triple>[.exe]
 #
 # Usage: ./scripts/build-sidecar.sh
 set -euo pipefail
@@ -77,8 +77,8 @@ echo "Running PyInstaller (this can take a minute)..."
   --workpath "$WORK" \
   --clean --noconfirm
 
-SRC_BIN="$TMP_DIST/akaion-runner${EXE_EXT}"
-DEST_BIN="$ROOT/ui/src-tauri/binaries/akaion-runner-${TRIPLE}${EXE_EXT}"
+SRC_BIN="$TMP_DIST/annona${EXE_EXT}"
+DEST_BIN="$ROOT/ui/src-tauri/binaries/annona-${TRIPLE}${EXE_EXT}"
 
 if [ ! -f "$SRC_BIN" ]; then
   echo "PyInstaller output not found at $SRC_BIN" >&2

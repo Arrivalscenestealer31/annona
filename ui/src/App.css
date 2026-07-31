@@ -109,7 +109,7 @@ input.field::placeholder { color: var(--text-sub); }
 .text-accent { color: var(--accent); }
 
 /* ──────────────────────────────────────────────────────────────────────
-   Akaion Runner — Step 8 polish (Brain shell + sidebar premium)
+   Annona — Step 8 polish (Brain shell + sidebar premium)
    These rules layer on top of the base shell; they override defaults
    using the `.ak-` prefix or by extending existing class behaviour.
    ────────────────────────────────────────────────────────────────────── */

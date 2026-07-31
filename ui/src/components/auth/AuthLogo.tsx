@@ -10,7 +10,7 @@ interface AuthLogoProps {
 }
 
 export default function AuthLogo({
-  title = "Akaion Runner",
+  title = "Annona",
   subtitle = "Your local-first knowledge vault",
 }: AuthLogoProps) {
   return (

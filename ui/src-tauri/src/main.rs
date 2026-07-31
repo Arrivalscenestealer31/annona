@@ -10,7 +10,7 @@ use tauri::{
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
-const SIDECAR_NAME: &str = "akaion-runner";
+const SIDECAR_NAME: &str = "annona";
 const HEALTH_URL: &str = "http://127.0.0.1:7070/health";
 const HEALTH_RETRY_MAX: u32 = 60; // 60 * 500ms = 30s
 const HEALTH_RETRY_DELAY_MS: u64 = 500;
@@ -156,7 +156,7 @@ fn build_main_window(app: &AppHandle, url: WebviewUrl) {
         return;
     }
     let res = WebviewWindowBuilder::new(app, "main", url)
-        .title("Akaion Runner")
+        .title("Annona")
         .inner_size(1280.0, 800.0)
         .min_inner_size(900.0, 600.0)
         .resizable(true)
@@ -169,11 +169,11 @@ fn build_main_window(app: &AppHandle, url: WebviewUrl) {
 
 fn show_error_window(app: &AppHandle, message: &str) {
     let html = format!(
-        "<html><head><title>Akaion Runner — error</title>\
+        "<html><head><title>Annona — error</title>\
         <style>body{{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;\
         background:#0b0f14;color:#e6edf3;padding:24px;line-height:1.4}}\
         code{{background:#161b22;padding:2px 6px;border-radius:4px}}</style>\
-        </head><body><h2>Akaion Runner couldn't start</h2><p>{}</p>\
+        </head><body><h2>Annona couldn't start</h2><p>{}</p>\
         <p>Check logs at <code>~/Library/Logs/com.akaion.runner/</code> (macOS) \
         or the terminal output if launched via <code>./start.sh</code>.</p></body></html>",
         message
@@ -244,7 +244,7 @@ fn main() {
                 log::error!("daemon failed to bind :7070 within {}s", HEALTH_RETRY_MAX / 2);
                 show_error_window(
                     &handle,
-                    "The Akaion Runner daemon failed to start on port 7070 within 30 seconds.",
+                    "The Annona daemon failed to start on port 7070 within 30 seconds.",
                 );
             });
 

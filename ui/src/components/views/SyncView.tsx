@@ -115,7 +115,7 @@ export default function SyncView() {
                   esplicitamente per sync dal Brain (tasto <em>Sync</em> nell'editor).
                 </p>
                 <p style={{ marginTop: 6 }}>
-                  <strong style={{ color: "var(--text)" }}>One-way sync</strong> — Akaion Runner publishes torso il cloud, non scarica.
+                  <strong style={{ color: "var(--text)" }}>One-way sync</strong> — Annona publishes torso il cloud, non scarica.
                   Le note cloud restano sul cloud; quelle locali vivono sul tuo Mac.
                 </p>
               </div>

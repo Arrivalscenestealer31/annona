@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Akaion Runner",
+  "productName": "Annona",
   "version": "0.1.0",
-  "identifier": "com.akaion.runner",
+  "identifier": "com.akaion.annona",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Akaion Runner",
+        "title": "Annona",
         "label": "main",
         "width": 1280,
         "height": 800,
@@ -33,8 +33,8 @@
     "targets": ["dmg", "app", "appimage", "deb", "msi", "nsis"],
     "category": "Productivity",
     "copyright": "© 2026 Akaion",
-    "shortDescription": "Akaion Runner - Local agent daemon",
-    "longDescription": "Akaion Runner is the local agent daemon of the Akaion platform. Runs your Brain locally and (optionally) syncs to the Akaion cloud.",
+    "shortDescription": "Annona — the sovereign execution kernel",
+    "longDescription": "Annona decides where each step of an agent run may execute — your GPU, your cluster, or a frontier API — enforces the decision, and records it.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -42,7 +42,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/akaion-runner"],
+    "externalBin": ["binaries/annona"],
     "macOS": {
       "minimumSystemVersion": "10.15",
       "exceptionDomain": "127.0.0.1"

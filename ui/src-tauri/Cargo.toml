@@ -1,13 +1,13 @@
 [package]
-name = "akaion-runner-shell"
+name = "annona-shell"
 version = "0.1.0"
-description = "Akaion Runner desktop shell (Tauri 2)"
+description = "Annona desktop shell (Tauri 2)"
 authors = ["Akaion"]
 edition = "2021"
 rust-version = "1.77"
 
 [[bin]]
-name = "akaion-runner-app"
+name = "annona-app"
 path = "src/main.rs"
 
 [build-dependencies]

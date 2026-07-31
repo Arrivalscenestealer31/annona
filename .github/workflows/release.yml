@@ -22,16 +22,16 @@ jobs:
         include:
           - os: macos-14            # Apple Silicon runner
             target: aarch64-apple-darwin
-            pyinstaller-name: akaion-runner-aarch64-apple-darwin
+            pyinstaller-name: annona-aarch64-apple-darwin
           - os: macos-13            # Intel runner
             target: x86_64-apple-darwin
-            pyinstaller-name: akaion-runner-x86_64-apple-darwin
+            pyinstaller-name: annona-x86_64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            pyinstaller-name: akaion-runner-x86_64-pc-windows-msvc.exe
+            pyinstaller-name: annona-x86_64-pc-windows-msvc.exe
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            pyinstaller-name: akaion-runner-x86_64-unknown-linux-gnu
+            pyinstaller-name: annona-x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
             --workpath build/work \
             --clean --noconfirm
           mkdir -p ui/src-tauri/binaries
-          mv dist-sidecar/akaion-runner "ui/src-tauri/binaries/${{ matrix.pyinstaller-name }}"
+          mv dist-sidecar/annona "ui/src-tauri/binaries/${{ matrix.pyinstaller-name }}"
           chmod +x "ui/src-tauri/binaries/${{ matrix.pyinstaller-name }}"
 
       - name: Build Python sidecar (Windows)
@@ -110,7 +110,7 @@ jobs:
         run: |
           pyinstaller runner.spec --distpath dist-sidecar --workpath build/work --clean --noconfirm
           New-Item -ItemType Directory -Force -Path ui/src-tauri/binaries | Out-Null
-          Move-Item -Force dist-sidecar/akaion-runner.exe "ui/src-tauri/binaries/${{ matrix.pyinstaller-name }}"
+          Move-Item -Force dist-sidecar/annona.exe "ui/src-tauri/binaries/${{ matrix.pyinstaller-name }}"
 
       - name: Build Tauri bundle
         working-directory: ui
@@ -157,7 +157,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: akaion-runner-${{ matrix.target }}
+          name: annona-${{ matrix.target }}
           path: artifacts/
           retention-days: 14
           if-no-files-found: error
@@ -211,15 +211,15 @@ jobs:
           prerelease: true
           generate_release_notes: true
           body: |
-            ## Akaion Runner ${{ github.ref_name }}
+            ## Annona ${{ github.ref_name }}
 
             **Beta — unsigned builds.** First launch on macOS: right-click the app and pick **Open** to bypass Gatekeeper.
             On Windows, SmartScreen may warn; click **More info** then **Run anyway**.
 
             ### Downloads
-            - **macOS Apple Silicon (M-series)**: `Akaion Runner_*_aarch64.dmg`
-            - **macOS Intel**: `Akaion Runner_*_x64.dmg`
-            - **Windows**: `Akaion Runner_*_x64-setup.exe`
-            - **Linux**: `Akaion Runner_*_amd64.AppImage` or `akaion-runner_*_amd64.deb`
+            - **macOS Apple Silicon (M-series)**: `Annona_*_aarch64.dmg`
+            - **macOS Intel**: `Annona_*_x64.dmg`
+            - **Windows**: `Annona_*_x64-setup.exe`
+            - **Linux**: `Annona_*_amd64.AppImage` or `annona_*_amd64.deb`
 
             See [QUICKSTART.md](../QUICKSTART.md) for usage.

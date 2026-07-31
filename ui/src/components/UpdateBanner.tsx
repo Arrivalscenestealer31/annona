@@ -16,7 +16,7 @@ export default function UpdateBanner() {
 
   let label = "";
   if (available) {
-    label = `Akaion Runner ${available.version} disponibile`;
+    label = `Annona ${available.version} disponibile`;
   } else if (errored) {
     label = "Update failed";
   }

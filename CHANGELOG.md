@@ -6,6 +6,20 @@ Notable changes to this project. Format based on
 
 ## [Unreleased]
 
+### The desktop app is Annona, and there is a site
+
+The Tauri shell, the PyInstaller sidecar, the bundle names and the release
+matrix all still said *Akaion Runner*. They now say Annona, end to end: product
+name, bundle identifier (`com.akaion.annona`), window title, sidecar binary,
+Cargo crates, and the four release targets — macOS arm64 and x64, Windows x64,
+Linux x64. A tagged release drafts a GitHub Release with `.dmg`, `.exe`,
+`.AppImage` and `.deb` attached.
+
+`docs/index.md` became a landing page rather than a table of contents: the
+mascot, five numbers instead of five adjectives, per-platform download cards,
+how it works in four steps, and the honest list of what it is not — with a
+`pages` workflow that publishes it to GitHub Pages on every push to main.
+
 ### Documentation caught up with the code
 
 The research programme was still describing four shipped mechanisms as *not

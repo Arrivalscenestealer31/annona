@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Akaion Runner - Startup Script
+# Annona - Startup Script
 # Always call the venv interpreter directly, to avoid shell alias conflicts
 
 set -e
@@ -39,7 +39,7 @@ for arg in "$@"; do
             Darwin/x86_64) TRIPLE="x86_64-apple-darwin"  ;;
             Linux/x86_64)  TRIPLE="x86_64-unknown-linux-gnu" ;;
         esac
-        if [ -n "$TRIPLE" ] && [ ! -f "$ROOT/ui/src-tauri/binaries/akaion-runner-${TRIPLE}" ]; then
+        if [ -n "$TRIPLE" ] && [ ! -f "$ROOT/ui/src-tauri/binaries/annona-${TRIPLE}" ]; then
             echo "Sidecar binary missing for $TRIPLE — building it now..."
             (cd "$ROOT" && ./scripts/build-sidecar.sh)
         fi
@@ -47,7 +47,7 @@ for arg in "$@"; do
     fi
 done
 
-echo "Starting Akaion Runner..."
+echo "Starting Annona..."
 
 if [ ! -f "$PYTHON" ]; then
     echo "Virtual environment not found. Creating..."

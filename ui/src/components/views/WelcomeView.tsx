@@ -66,7 +66,7 @@ export default function WelcomeView({ vaultPath = "~/akaion-brain", onSkip, onLo
 
       <div className="ak-welcome-card animate-fade-in-up">
         <AuthLogo
-          title="Akaion Runner"
+          title="Annona"
           subtitle="Your local-first knowledge vault"
         />
 

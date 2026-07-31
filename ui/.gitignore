@@ -26,8 +26,8 @@ dist-ssr
 # Tauri
 src-tauri/target
 src-tauri/gen
-src-tauri/binaries/akaion-runner
-src-tauri/binaries/akaion-runner-*
+src-tauri/binaries/annona
+src-tauri/binaries/annona-*
 
 # Env
 .env

@@ -181,3 +181,152 @@
     font-size: 2.4rem;
   }
 }
+
+/* ── Landing page ───────────────────────────────────────────────────────────
+ *
+ * The home page is the first thing a stranger sees, so it gets a hero, download
+ * cards and a verdigris accent that matches the mascot's armour. Everything is
+ * local: the CSS, the image, the type. A project whose claim is "nothing leaves"
+ * cannot have a landing page that loads a font from a CDN.
+ */
+
+:root {
+  --an-accent: #1f6f68;
+  --an-accent-bright: #2e9187;
+}
+
+[data-md-color-scheme="slate"] {
+  --an-accent: #5cbbae;
+  --an-accent-bright: #7fd0c4;
+}
+
+.an-hero {
+  text-align: center;
+  padding: 2rem 0 1.5rem;
+}
+
+.an-hero__mascot {
+  width: 200px;
+  max-width: 46vw;
+  height: auto;
+  margin: 0 auto 0.5rem;
+  display: block;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.28));
+}
+
+.md-typeset .an-hero__title {
+  font-size: 3.4rem;
+  line-height: 1;
+  margin: 0.2rem 0 0.4rem;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.an-hero__tagline {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--an-accent);
+  margin: 0 0 0.9rem;
+  letter-spacing: 0.01em;
+}
+
+.an-hero__sub {
+  max-width: 40rem;
+  margin: 0 auto 1.4rem;
+  font-size: 0.92rem;
+  opacity: 0.86;
+}
+
+.an-hero__meta {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  margin-top: 1.1rem;
+}
+
+/* Numbers, not adjectives. */
+.an-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0 0 1.4rem;
+}
+
+.an-stat {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 3px;
+  padding: 0.35rem 0.7rem;
+  min-width: 5.4rem;
+}
+
+.an-stat b {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--an-accent);
+  line-height: 1.2;
+}
+
+.an-stat span {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.66;
+}
+
+.an-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.md-typeset .an-btn {
+  display: inline-block;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 3px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: background-color 120ms, border-color 120ms, transform 120ms;
+}
+
+.md-typeset .an-btn:hover {
+  border-color: var(--an-accent);
+  transform: translateY(-1px);
+}
+
+.md-typeset .an-btn--primary {
+  background: var(--an-accent);
+  border-color: var(--an-accent);
+  color: #fff;
+}
+
+.md-typeset .an-btn--primary:hover {
+  background: var(--an-accent-bright);
+  border-color: var(--an-accent-bright);
+  color: #fff;
+}
+
+/* Download and step cards: same grid Material ships, quieter. */
+.md-typeset .an-downloads .md-typeset__table,
+.md-typeset .an-downloads p {
+  margin: 0.4rem 0;
+}
+
+.md-typeset .an-downloads > ul > li,
+.md-typeset .an-steps > ul > li {
+  border-color: var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .an-downloads .twemoji,
+.md-typeset .an-downloads .material-icons {
+  font-size: 1.6rem;
+  color: var(--an-accent);
+}
+
+@media screen and (max-width: 44.98em) {
+  .md-typeset .an-hero__title { font-size: 2.4rem; }
+  .an-hero__mascot { width: 150px; }
+}
