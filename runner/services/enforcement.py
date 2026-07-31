@@ -233,7 +233,13 @@ class Enforcement:
                 )
 
         classifier = PolicyClassifier(policy)
-        working_set = WorkingSet()
+        # The floor is the policy's, not this constructor's. `WorkingSet()`
+        # defaults to PUBLIC, so until now a policy declaring `internal` as
+        # its default class was quietly ignored and every run started at the
+        # class that grants the widest permission — the exact inversion of
+        # what `Policy.default_class` documents ("unclassifiable material is
+        # treated as the most sensitive, never the least").
+        working_set = WorkingSet(initial=policy.default_class)
         registry = SubstrateRegistry.from_substrates(
             policy.substrates,
             prober=http_prober() if probe else None,

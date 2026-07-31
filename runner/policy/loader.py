@@ -385,8 +385,17 @@ def default_policy_document(
                     r"\bIT\d{2}[A-Z]\d{10}[0-9A-Z]{12}\b",
                 ],
             },
-            "internal": {"paths": ["~/**"]},
-            "public": {"default": True},
+            # `default: true` marks the floor — the class of material nothing
+            # recognised. It is internal, not public, because a regex cannot
+            # recognise "my name is X, I am 27, write to Y": that text matches no
+            # pattern and lives at no path, and a floor of public would make it
+            # placeable on any substrate an operator ever adds for public. The
+            # class of the unrecognised has to be the cautious one, or the
+            # guarantee only covers the material you already knew about.
+            "internal": {"paths": ["~/**"], "default": True},
+            # Reachable only if you lower the floor deliberately. Left here so a
+            # deployment that genuinely has public material can say so.
+            "public": {},
         },
         "substrates": [
             {
