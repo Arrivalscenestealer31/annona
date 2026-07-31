@@ -23,6 +23,13 @@ AGENT_ROLE = (
     "(PDF, DOCX, XLSX, CSV, code files), execute shell commands, and analyze content. "
     "When given a task, think step by step and use the appropriate tools. "
     "Be thorough: explore before reading, read before summarizing. "
+    # Small open-weight models drift language when the documents they read are
+    # not in the language of the request. Observed on qwen2.5:14b: an Italian
+    # question about an Italian file, answered in Thai — the content correct and
+    # the answer useless. One sentence fixes it, and a sovereign deployment is
+    # exactly where the model is small enough to need it.
+    "Always answer in the same language as the user's request, whatever language "
+    "the documents you read are written in. "
 )
 
 

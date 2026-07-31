@@ -27,13 +27,23 @@ def executor(minimal_config):
 
 
 class TestCommandTask:
-    def test_command_calls_ai_execute_command(self, executor):
-        executor._mock_ai.execute_command.return_value = {"response": "Done", "actions": []}
+    def test_a_command_goes_through_the_agentic_loop(self, executor):
+        """A command is a task with a prompt, and it takes the same route.
+
+        It used to call `AIClient.execute_command`, which posts to the control
+        plane's runner endpoint: on a machine with no credentials that client is
+        None and `annona run --once --task …` died, and when it worked it
+        bypassed placement. This test pinned the old routing in place, so it is
+        the test that changes.
+        """
+        executor._mock_ai.reason_and_execute.return_value = {"response": "Done", "tool_calls": []}
         task = {"type": "command", "payload": {"command": "list files"}}
         result = executor.execute(task)
+
         assert result["type"] == "command_result"
         assert result["command"] == "list files"
-        executor._mock_ai.execute_command.assert_called_once()
+        executor._mock_ai.reason_and_execute.assert_called_once()
+        assert executor._mock_ai.reason_and_execute.call_args.kwargs["prompt"] == "list files"
 
     def test_command_missing_command_raises(self, executor):
         with pytest.raises(ValueError, match="No command provided"):

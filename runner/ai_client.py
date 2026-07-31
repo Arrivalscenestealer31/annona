@@ -265,6 +265,11 @@ class AIClient:
         """
         # Se il provider è Akaion, usa l'endpoint specifico per runner
         if self.provider == "akaion":
+            if self.client is None:
+                raise ConfigurationError(
+                    "the Akaion provider needs credentials: run `annona login`, or set "
+                    "ai.provider to a local runtime. (Nothing was sent anywhere.)"
+                )
             return self._execute_command_akaion(command, tools)
 
         # Altrimenti usa il metodo generico con chat completion

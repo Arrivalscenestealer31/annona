@@ -25,6 +25,8 @@ read and retry from, which is the loop working as designed rather than a crash.
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -212,6 +214,106 @@ def _describe_result(block: Any) -> str:
     return str(body)
 
 
+_TOOL_CALL_START = re.compile(r'\{\s*"name"\s*:')
+"""Where a tool call written as prose begins.
+
+Not a hypothetical. Observed on qwen2.5:14b through Ollama, on the same prompt
+that had worked a minute earlier:
+
+    forCell
+    {"name": "document_reader", "arguments": {"path": "…/BG-114.txt"}}
+    </tool_call>
+
+The intent is right and the arguments are right; only the channel is wrong, and
+the run failed anyway because nothing was reading the text. Recovering it is the
+difference between a small model being usable and being a demo — and it is the
+gap grammar-constrained decoding closes properly, which is why this is a
+mitigation with a comment rather than a solution.
+"""
+
+
+def _json_object_at(text: str, start: int) -> tuple[str, int] | None:
+    """The complete JSON object beginning at ``start``, brace-balanced.
+
+    A regex cannot do this: `arguments` nests, so a non-greedy match stops at
+    the first inner brace and produces something that will not parse. Strings
+    are tracked so a brace inside a path or a message does not end the object.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+
+    for index in range(start, len(text)):
+        char = text[index]
+
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1], index + 1
+
+    return None
+
+
+def _recover_text_tool_calls(text: str) -> tuple[str, list[ToolCall]]:
+    """Pull tool calls out of assistant prose, and return the text without them."""
+    calls: list[ToolCall] = []
+    spans: list[tuple[int, int]] = []
+
+    for match in _TOOL_CALL_START.finditer(text):
+        found = _json_object_at(text, match.start())
+        if found is None:
+            continue
+        blob, end = found
+
+        try:
+            parsed = json.loads(blob)
+        except json.JSONDecodeError:
+            continue
+
+        name = parsed.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+
+        arguments = parsed.get("arguments")
+        calls.append(
+            ToolCall(
+                id=f"recovered_{len(calls)}",
+                name=name,
+                arguments=arguments if isinstance(arguments, dict) else {},
+            )
+        )
+        spans.append((match.start(), end))
+
+    if not calls:
+        return text, []
+
+    cleaned = text
+    for begin, end in reversed(spans):
+        cleaned = cleaned[:begin] + cleaned[end:]
+    # The wrapper tags the model sometimes emits around the call are noise once
+    # the call itself is gone.
+    cleaned = cleaned.replace("<tool_call>", "").replace("</tool_call>", "")
+
+    logger.warning(
+        f"ollama: recovered {len(calls)} tool call(s) the model wrote as text — "
+        "the intent was right and the channel was wrong"
+    )
+    return cleaned.strip(), calls
+
+
 def _decode(payload: dict[str, Any]) -> Completion:
     """Decode an Ollama chat response."""
     message = payload.get("message") or {}
@@ -230,6 +332,9 @@ def _decode(payload: dict[str, Any]) -> Completion:
                 arguments=arguments if isinstance(arguments, dict) else {},
             )
         )
+
+    if not calls and text:
+        text, calls = _recover_text_tool_calls(text)
 
     if calls:
         logger.debug(f"ollama: {len(calls)} tool call(s): {[c.name for c in calls]}")

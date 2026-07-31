@@ -4,6 +4,28 @@ Shared fixtures for all runner tests.
 
 import pytest
 
+# ── Hermetic by default ───────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _isolated_home(tmp_path_factory, monkeypatch):
+    """Point the runner's home at a throwaway directory for every test.
+
+    Enforcement switches on when a policy exists at `$ANNONA_HOME/policy.yaml`,
+    which is correct behaviour and made the suite depend on the machine it ran
+    on: writing a policy in a real home turned twenty-six unrelated tests red,
+    because they silently started routing through the perimeter.
+
+    A test that reads the developer's home is not testing the product, it is
+    testing the developer.
+    """
+    home = tmp_path_factory.mktemp("annona-home")
+    monkeypatch.setenv("ANNONA_HOME", str(home))
+    monkeypatch.setenv("AKAION_HOME", str(home))
+    monkeypatch.setenv("AKAION_BRAIN_DIR", str(home / "vault"))
+    return home
+
+
 # ── Minimal config fixture ────────────────────────────────────────────────────
 
 

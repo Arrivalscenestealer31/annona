@@ -789,3 +789,16 @@ class TestAkaionContextAndSystem:
 
         call_kwargs = mock_client.runner_agent_turn.call_args[1]
         assert call_kwargs["runner_id"] == "my-runner-abc"
+
+
+def test_the_system_prompt_pins_the_answer_language():
+    """Small models drift into the language of the documents they read.
+
+    Observed on qwen2.5:14b: an Italian question about an Italian file answered
+    in Thai — content correct, answer useless. A sovereign deployment is
+    precisely where the model is small enough for this to happen.
+    """
+    from runner.agent.prompt import build_system_prompt
+
+    prompt = build_system_prompt(None)
+    assert "same language as the user's request" in prompt

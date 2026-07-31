@@ -63,7 +63,21 @@ class TaskExecutor:
             raise ValueError(f"Unknown task type: {task_type}")
 
     def _execute_command(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a simple command."""
+        """Execute an instruction written in natural language.
+
+        Through the agentic loop, which is where the perimeter lives: a command
+        is a task with a prompt, and there is no reason for it to take a
+        different route from an `ai_task`.
+
+        It used to call `AIClient.execute_command`, which posts the instruction
+        to the control plane's runner endpoint. On a machine with no
+        credentials that client is `None`, so `annona run --once --task …` — the
+        documented way to run one thing — died with
+
+            'NoneType' object has no attribute 'runner_execute'
+
+        and, worse, when it *did* work it bypassed placement entirely.
+        """
         command = payload.get("command")
 
         if not command:
@@ -71,8 +85,12 @@ class TaskExecutor:
 
         logger.info(f"Executing command: {command}")
 
-        # Let the model interpret and carry out the command
-        result = self.ai_client.execute_command(command, self.tools)
+        result = self.ai_client.reason_and_execute(
+            prompt=command,
+            context=payload.get("context", {}),
+            tools=self.tools,
+            permissions=self.permissions,
+        )
 
         return {"type": "command_result", "command": command, "result": result}
 
