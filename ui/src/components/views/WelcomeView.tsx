@@ -3,7 +3,7 @@
  *
  * Local-first philosophy: NO login required to start using the app.
  * Primary CTA = "Open my vault" (skips cloud sync).
- * Secondary CTA = "Sync with Akaion Cloud" (optional Google sign-in).
+ * Secondary CTA = optional cloud sign-in, which is exactly that: optional.
  *
  * Once dismissed (either path), `localStorage.akaion_onboarding_done = "true"`,
  * so the next launch skips this view altogether.
@@ -67,7 +67,7 @@ export default function WelcomeView({ vaultPath = "~/akaion-brain", onSkip, onLo
       <div className="ak-welcome-card animate-fade-in-up">
         <AuthLogo
           title="Annona"
-          subtitle="Your local-first knowledge vault"
+          subtitle="Where it runs is a decision"
         />
 
         <button
@@ -87,7 +87,7 @@ export default function WelcomeView({ vaultPath = "~/akaion-brain", onSkip, onLo
           variant="full"
           isLoading={loading}
           onClick={handleGoogle}
-          label="Sync with Akaion Cloud"
+          label="Sign in to sync (optional)"
         />
 
         {error && <div className="ak-auth-error">{error}</div>}

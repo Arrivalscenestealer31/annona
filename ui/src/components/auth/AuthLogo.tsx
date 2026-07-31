@@ -2,7 +2,6 @@
  * Auth Logo — reusable brand block for the welcome / login screens.
  * Plain CSS (no Tailwind required). Italian copy by default.
  */
-import LogoAkaion from "../brand/LogoAkaion";
 
 interface AuthLogoProps {
   title?: string;
@@ -11,7 +10,7 @@ interface AuthLogoProps {
 
 export default function AuthLogo({
   title = "Annona",
-  subtitle = "Your local-first knowledge vault",
+  subtitle = "Where it runs is a decision",
 }: AuthLogoProps) {
   return (
     <div style={{ textAlign: "center", marginBottom: 32 }}>
@@ -21,22 +20,22 @@ export default function AuthLogo({
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 72,
-          height: 72,
-          borderRadius: 22,
-          marginBottom: 18,
-          overflow: "hidden",
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow:
-            "0 10px 30px rgba(0,0,0,0.40), 0 0 40px hsl(270 100% 70% / 0.18)",
+          width: 132,
+          height: 132,
+          marginBottom: 10,
         }}
       >
-        <LogoAkaion
-          variant="glow"
-          size={44}
-          withShadow
-          style={{ position: "relative", zIndex: 1, borderRadius: 12 }}
+        {/* The mascot, not a mark: this window is the product's face, and the
+            product is Annona. */}
+        <img
+          src="/annona-mascot.png"
+          alt="Annona"
+          style={{
+            width: 132,
+            height: 132,
+            objectFit: "contain",
+            filter: "drop-shadow(0 12px 28px rgba(0,0,0,.45))",
+          }}
         />
       </div>
       <h1

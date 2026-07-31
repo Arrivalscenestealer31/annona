@@ -144,7 +144,7 @@ export default function App() {
   };
 
   const statusLabel: Record<string, string> = {
-    running: "Runner active",
+    running: "Daemon active",
     stopped: "Runner fermo",
     starting: "Avvio…",
     error: "Runner error",
@@ -178,7 +178,7 @@ export default function App() {
             <LogoAkaion variant="glow" size={24} rounded={6} />
           </span>
           <div>
-            <div className="ak-sidebar-logo__name">Akaion</div>
+            <div className="ak-sidebar-logo__name">Annona</div>
             <div className="ak-sidebar-logo__sub">{isAuthed ? "Cloud" : "Local"}</div>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function App() {
             <div className="ak-cloud-badge" role="region" aria-label="Modalità cloud">
               <div className="ak-cloud-badge__row">
                 <span className="ak-cloud-badge__dot ak-cloud-badge__dot--online" />
-                <span style={{ fontSize: 12, fontWeight: 500 }}>Akaion Cloud</span>
+                <span style={{ fontSize: 12, fontWeight: 500 }}>Cloud sync</span>
               </div>
               {authStatus?.email && (
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: -2 }}>
@@ -331,7 +331,7 @@ export default function App() {
         )}
         <div className="ak-statusbar__sep" />
         <div className="ak-statusbar__item ak-statusbar__item--muted">
-          <span>Runner v0.1.0</span>
+          <span>Annona v0.1.0</span>
         </div>
       </footer>
     </div>

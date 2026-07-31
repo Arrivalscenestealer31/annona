@@ -8,7 +8,7 @@ interface SocialButtonProps {
   isLoading?: boolean;
   disabled?: boolean;
   variant?: "icon-only" | "full";
-  /** Optional override label (e.g. "Sync with Akaion Cloud"). */
+  /** Optional override label (e.g. "Sign in to sync"). */
   label?: string;
 }
 

@@ -11,7 +11,7 @@ export default function PluginsView() {
       <div className="view-header">
         <div className="view-header-left">
           <div className="view-title">Plugin</div>
-          <div className="view-sub">Extend the local vault with native Akaion plugins</div>
+          <div className="view-sub">Extend the local vault with native plugins</div>
         </div>
       </div>
 

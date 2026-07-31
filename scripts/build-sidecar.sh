@@ -58,11 +58,15 @@ if [ -f "$ROOT/ui/package.json" ]; then
   if [ ! -d "$ROOT/ui/node_modules" ]; then
     (cd "$ROOT/ui" && npm install --silent)
   fi
-  if [ ! -f "$ROOT/ui/dist/index.html" ] || [ "${REBUILD_UI:-0}" = "1" ]; then
+  # Always rebuild. The sidecar *embeds* ui/dist, so a stale dist means the
+  # daemon serves an interface older than the source — which is how an
+  # afternoon disappears into "I changed the text and the app still says the
+  # old one". Set SKIP_UI_BUILD=1 only when you know dist is current.
+  if [ "${SKIP_UI_BUILD:-0}" = "1" ] && [ -f "$ROOT/ui/dist/index.html" ]; then
+    echo "UI build skipped (SKIP_UI_BUILD=1); the sidecar will embed whatever is in ui/dist."
+  else
     echo "Building UI (vite)..."
     (cd "$ROOT/ui" && npm run build)
-  else
-    echo "UI dist already present (set REBUILD_UI=1 to force rebuild)."
   fi
 fi
 

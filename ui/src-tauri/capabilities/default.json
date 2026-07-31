@@ -1,19 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for Akaion Runner: spawn Python sidecar + control main window.",
+  "description": "Annona: spawn the daemon sidecar, control the main window, check for updates.",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "shell:default",
     "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
     "process:default",
     "process:allow-restart",
     {
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "binaries/akaion-runner",
+          "name": "binaries/annona",
           "sidecar": true,
           "args": true
         }
@@ -23,7 +25,7 @@
       "identifier": "shell:allow-kill",
       "allow": [
         {
-          "name": "binaries/akaion-runner",
+          "name": "binaries/annona",
           "sidecar": true,
           "args": true
         }

@@ -152,7 +152,26 @@ fn spawn_sidecar(app: &AppHandle) -> Result<CommandChild, String> {
 }
 
 fn build_main_window(app: &AppHandle, url: WebviewUrl) {
-    if app.get_webview_window("main").is_some() {
+    // The configuration declares a `main` window with `visible: false`, so
+    // nothing flashes on screen while the daemon is still starting. Tauri
+    // creates it at launch, which means it always exists by the time we get
+    // here — and this function used to see that and return, leaving a hidden
+    // window pointing at nothing.
+    //
+    // The app has therefore never shown a window in a packaged build: daemon
+    // healthy, port open, no error anywhere, and nothing on screen. Showing and
+    // navigating the existing window is the whole fix.
+    if let Some(window) = app.get_webview_window("main") {
+        if let WebviewUrl::External(target) = &url {
+            if let Err(e) = window.navigate(target.clone()) {
+                log::error!("could not point the window at the daemon: {e}");
+            }
+        }
+        if let Err(e) = window.show() {
+            log::error!("could not show the window: {e}");
+        }
+        let _ = window.set_focus();
+        log::info!("main window shown and pointed at the daemon");
         return;
     }
     let res = WebviewWindowBuilder::new(app, "main", url)
@@ -229,6 +248,13 @@ fn main() {
             }
 
             // Wait for the daemon to bind :7070, then navigate the webview.
+            //
+            // The window is built through `run_on_main_thread`, and that is not
+            // ceremony: on macOS a window may only be created on the main
+            // thread, and this runs inside an async task. Built from here
+            // directly the call returned Ok and produced nothing — a daemon
+            // running happily, no window, no error in the log, and a user
+            // reporting "I opened it and nothing happened".
             tauri::async_runtime::spawn(async move {
                 for i in 0..HEALTH_RETRY_MAX {
                     if ping_health().await {
@@ -236,16 +262,24 @@ fn main() {
                         let url = WebviewUrl::External(
                             HEALTH_URL.replace("/health", "").parse().unwrap(),
                         );
-                        build_main_window(&handle, url);
+                        let for_window = handle.clone();
+                        if let Err(e) = handle.run_on_main_thread(move || {
+                            build_main_window(&for_window, url);
+                        }) {
+                            log::error!("could not reach the main thread to build the window: {e}");
+                        }
                         return;
                     }
                     tokio::time::sleep(Duration::from_millis(HEALTH_RETRY_DELAY_MS)).await;
                 }
                 log::error!("daemon failed to bind :7070 within {}s", HEALTH_RETRY_MAX / 2);
-                show_error_window(
-                    &handle,
-                    "The Annona daemon failed to start on port 7070 within 30 seconds.",
-                );
+                let for_error = handle.clone();
+                let _ = handle.run_on_main_thread(move || {
+                    show_error_window(
+                        &for_error,
+                        "The Annona daemon failed to start on port 7070 within 30 seconds.",
+                    );
+                });
             });
 
             Ok(())
