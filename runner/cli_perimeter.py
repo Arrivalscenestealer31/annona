@@ -32,7 +32,9 @@ from runner.services.enforcement import policy_path
 
 console = Console()
 
-policy_app = typer.Typer(name="policy", help="📜 The policy: show, validate, create", no_args_is_help=True)
+policy_app = typer.Typer(
+    name="policy", help="📜 The policy: show, validate, create", no_args_is_help=True
+)
 
 
 def _load(path: Path | None = None):
@@ -279,15 +281,15 @@ def skills_install(
     target = Path(home) if home else skills_dirs()[-1]
 
     try:
-        installed = install_skill(
-            source, target, name=name or None, trust=trust, force=force
-        )
+        installed = install_skill(source, target, name=name or None, trust=trust, force=force)
     except ConfigurationError as exc:
         console.print(f"❌ [red]{escape(str(exc))}[/red]")
         raise typer.Exit(1) from exc
 
     skill = installed.skill
-    console.print(f"\n✅ [green]installed[/green] [cyan]{skill.name}[/cyan] → {installed.destination}")
+    console.print(
+        f"\n✅ [green]installed[/green] [cyan]{skill.name}[/cyan] → {installed.destination}"
+    )
     console.print(f"   [dim]{escape(skill.description)}[/dim]\n")
 
     if installed.pinned and not trust:
@@ -329,7 +331,9 @@ def why(
         raise typer.Exit(1)
 
     colour = "red" if entry.outcome == "held" else "green"
-    console.print(f"\n[bold]{entry.step_id}[/bold]  {entry.kind}  [{colour}]{entry.outcome.upper()}[/{colour}]")
+    console.print(
+        f"\n[bold]{entry.step_id}[/bold]  {entry.kind}  [{colour}]{entry.outcome.upper()}[/{colour}]"
+    )
     console.print(f"  class        {entry.klass}")
     if entry.detail.get("working_set"):
         console.print(f"  working set  {entry.detail['working_set']}")
@@ -395,7 +399,9 @@ def audit(
 
     refusals = [e for e in entries if e.outcome == "held"]
     if refusals and not held:
-        console.print(f"\n[yellow]{len(refusals)} refused[/yellow] — rerun with --held to list them")
+        console.print(
+            f"\n[yellow]{len(refusals)} refused[/yellow] — rerun with --held to list them"
+        )
     elif refusals:
         console.print("")
         table = Table(title="Refused")

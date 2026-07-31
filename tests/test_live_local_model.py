@@ -87,9 +87,7 @@ class Wiretap:
         self.received.append(
             request.system
             + "\n"
-            + "\n".join(
-                str(getattr(b, "content", b)) for t in request.transcript for b in t.blocks
-            )
+            + "\n".join(str(getattr(b, "content", b)) for t in request.transcript for b in t.blocks)
         )
         return Completion(text_parts=("acknowledged",), stop_reason="end_turn")
 
@@ -252,9 +250,7 @@ def test_a_real_model_reading_a_real_client_file_never_leaks_it(tmp_path):
     client_dir = tmp_path / "clients"
     client_dir.mkdir()
     matter = client_dir / "BG-114.txt"
-    matter.write_text(
-        f"Cliente RSSMRA85T10A562S, pratica 2026/114, scadenza 15 marzo. {CANARY}"
-    )
+    matter.write_text(f"Cliente RSSMRA85T10A562S, pratica 2026/114, scadenza 15 marzo. {CANARY}")
 
     frontier = Wiretap()
     enforcement = Enforcement.for_run(

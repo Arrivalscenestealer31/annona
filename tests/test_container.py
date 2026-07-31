@@ -91,10 +91,26 @@ def test_the_image_ships_no_credentials():
     that fails for being right.
     """
     listing = docker(
-        "run", "--rm", "--entrypoint", "find", IMAGE,
-        "/home/annona", "/opt/venv/bin",
-        "(", "-name", ".env*", "-o", "-name", "auth.json", "-o", "-name", "id_rsa*",
-        "-o", "-name", "*.key", ")",
+        "run",
+        "--rm",
+        "--entrypoint",
+        "find",
+        IMAGE,
+        "/home/annona",
+        "/opt/venv/bin",
+        "(",
+        "-name",
+        ".env*",
+        "-o",
+        "-name",
+        "auth.json",
+        "-o",
+        "-name",
+        "id_rsa*",
+        "-o",
+        "-name",
+        "*.key",
+        ")",
     )
     assert listing.stdout.strip() == ""
 
@@ -131,8 +147,15 @@ def test_placement_inside_a_container_matches_placement_outside_one(volume):
 def test_a_malformed_policy_stops_the_command_rather_than_being_ignored(volume):
     run_in(volume, "policy", "init")
     docker(
-        "run", "--rm", "-v", f"{volume}:/home/annona/.annona", "--entrypoint", "sh", IMAGE,
-        "-c", "echo 'classes: [broken' > /home/annona/.annona/policy.yaml",
+        "run",
+        "--rm",
+        "-v",
+        f"{volume}:/home/annona/.annona",
+        "--entrypoint",
+        "sh",
+        IMAGE,
+        "-c",
+        "echo 'classes: [broken' > /home/annona/.annona/policy.yaml",
     )
 
     result = run_in(volume, "policy", "validate", check=False)
@@ -148,7 +171,13 @@ def test_the_ledger_verifies_from_inside_the_container(volume):
 
     # Two entries written by the CLI's own code path, through the volume.
     docker(
-        "run", "--rm", "-v", f"{volume}:/home/annona/.annona", "--entrypoint", "python", IMAGE,
+        "run",
+        "--rm",
+        "-v",
+        f"{volume}:/home/annona/.annona",
+        "--entrypoint",
+        "python",
+        IMAGE,
         "-c",
         "from runner.audit.ledger import Ledger;"
         "from runner.kernel.types import SensitivityClass as C;"
@@ -167,7 +196,13 @@ def test_the_ledger_verifies_from_inside_the_container(volume):
 def test_tampering_with_the_ledger_on_the_volume_is_detected(volume):
     run_in(volume, "policy", "init")
     docker(
-        "run", "--rm", "-v", f"{volume}:/home/annona/.annona", "--entrypoint", "python", IMAGE,
+        "run",
+        "--rm",
+        "-v",
+        f"{volume}:/home/annona/.annona",
+        "--entrypoint",
+        "python",
+        IMAGE,
         "-c",
         "from runner.audit.ledger import Ledger;"
         "from runner.kernel.types import SensitivityClass as C;"
@@ -176,7 +211,13 @@ def test_tampering_with_the_ledger_on_the_volume_is_detected(volume):
     )
 
     docker(
-        "run", "--rm", "-v", f"{volume}:/home/annona/.annona", "--entrypoint", "python", IMAGE,
+        "run",
+        "--rm",
+        "-v",
+        f"{volume}:/home/annona/.annona",
+        "--entrypoint",
+        "python",
+        IMAGE,
         "-c",
         "import json, pathlib;"
         "p = pathlib.Path('/home/annona/.annona/ledger.jsonl');"

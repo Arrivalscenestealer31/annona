@@ -154,7 +154,9 @@ def test_a_corrupt_line_is_detected_not_skipped(ledger):
 def test_an_entry_with_unknown_fields_is_rejected(tmp_path):
     """Extra fields are not covered by the hash, so they are not accepted."""
     path = tmp_path / "ledger.jsonl"
-    entry = LedgerEntry(seq=1, ts="t", run_id="r", step_id="s", kind="k", outcome="o", klass="public")
+    entry = LedgerEntry(
+        seq=1, ts="t", run_id="r", step_id="s", kind="k", outcome="o", klass="public"
+    )
     payload = json.loads(entry.sealed().to_json())
     payload["injected"] = "anything"
     path.write_text(json.dumps(payload) + "\n")

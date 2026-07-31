@@ -186,12 +186,28 @@ BASE = {
     },
     "substrates": [
         {"id": "local-gpu", "kind": "echo", "jurisdiction": "on-prem", "max_class": "restricted"},
-        {"id": "frontier", "kind": "echo", "jurisdiction": "us", "max_class": "public", "quality": 99},
+        {
+            "id": "frontier",
+            "kind": "echo",
+            "jurisdiction": "us",
+            "max_class": "public",
+            "quality": 99,
+        },
     ],
     "rules": [
-        {"id": "R-restricted", "match": {"class": "restricted"}, "allow": ["local-gpu"], "on_unavailable": "redact"},
+        {
+            "id": "R-restricted",
+            "match": {"class": "restricted"},
+            "allow": ["local-gpu"],
+            "on_unavailable": "redact",
+        },
         {"id": "R-internal", "match": {"class": "internal"}, "allow": ["local-gpu"]},
-        {"id": "R-public", "match": {"class": "public"}, "allow": ["frontier", "local-gpu"], "prefer": "quality"},
+        {
+            "id": "R-public",
+            "match": {"class": "public"},
+            "allow": ["frontier", "local-gpu"],
+            "prefer": "quality",
+        },
     ],
     "redaction": {
         "provider": "rizzo-pii",

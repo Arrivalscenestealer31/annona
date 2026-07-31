@@ -39,6 +39,7 @@ __all__ = [
     "write_default_policy",
 ]
 
+
 def _require_mapping(value: Any, what: str) -> Mapping[str, Any]:
     if value is None:
         return {}
@@ -70,7 +71,9 @@ def _parse_classes(raw: Mapping[str, Any]) -> dict[SensitivityClass, ClassSpec]:
             try:
                 patterns.append(re.compile(str(expr)))
             except re.error as exc:
-                raise PolicyError(f"classes.{name}.patterns: invalid regex {expr!r}: {exc}") from exc
+                raise PolicyError(
+                    f"classes.{name}.patterns: invalid regex {expr!r}: {exc}"
+                ) from exc
 
         classes[klass] = ClassSpec(
             paths=tuple(str(p) for p in _require_sequence(spec.get("paths"), "paths")),
@@ -263,7 +266,9 @@ def _parse_tools(raw: Mapping[str, Any]) -> ToolPolicy:
     }
     return ToolPolicy(
         allow=allow,
-        deny_paths=tuple(str(p) for p in _require_sequence(raw.get("deny_paths"), "tools.deny_paths")),
+        deny_paths=tuple(
+            str(p) for p in _require_sequence(raw.get("deny_paths"), "tools.deny_paths")
+        ),
     )
 
 

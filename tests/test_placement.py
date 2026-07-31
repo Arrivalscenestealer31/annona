@@ -220,7 +220,12 @@ def test_a_restricted_step_is_held_rather_than_placed_on_a_bigger_context_elsewh
 
 @pytest.mark.parametrize(
     ("prefer", "expected"),
-    [("privacy", "local-gpu"), ("cost", "local-gpu"), ("quality", "frontier"), ("latency", "local-gpu")],
+    [
+        ("privacy", "local-gpu"),
+        ("cost", "local-gpu"),
+        ("quality", "frontier"),
+        ("latency", "local-gpu"),
+    ],
 )
 def test_preference_decides_among_permitted_substrates(prefer, expected):
     document = {

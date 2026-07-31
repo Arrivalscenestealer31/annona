@@ -141,7 +141,9 @@ class RizzoPiiRedactor:
 
         return Redaction(
             text=redacted,
-            mapping={str(k): str(v) for k, v in mapping.items()} if isinstance(mapping, dict) else {},
+            mapping={str(k): str(v) for k, v in mapping.items()}
+            if isinstance(mapping, dict)
+            else {},
             labels={str(k): int(v) for k, v in labels.items()} if isinstance(labels, dict) else {},
         )
 

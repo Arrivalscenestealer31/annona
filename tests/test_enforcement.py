@@ -65,7 +65,9 @@ class ScriptedSubstrate:
     def complete(self, request: CompletionRequest) -> Completion:
         self.calls += 1
         rendered = "\n".join(
-            str(getattr(block, "content", block)) for turn in request.transcript for block in turn.blocks
+            str(getattr(block, "content", block))
+            for turn in request.transcript
+            for block in turn.blocks
         )
         self.received.append(request.system + "\n" + rendered)
 
@@ -204,7 +206,11 @@ def test_a_public_task_is_placed_on_the_best_permitted_substrate(tmp_path):
 
     enforcement, loop, _ = build(
         tmp_path,
-        substrates={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu"), "frontier": frontier},
+        substrates={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu"),
+            "frontier": frontier,
+        },
     )
     result = loop.run("summarise the public tender")
 
@@ -225,7 +231,11 @@ def test_reading_a_client_file_moves_the_whole_run_on_prem(tmp_path):
 
     enforcement, loop, tools = build(
         tmp_path,
-        substrates={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu"), "frontier": frontier},
+        substrates={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu"),
+            "frontier": frontier,
+        },
         files={str(client_file): "cliente RSSMRA85T10A562S, pratica 2026/114"},
     )
     result = loop.run("compare this client file with our case law")
@@ -253,11 +263,17 @@ def test_a_canary_never_reaches_a_substrate_that_may_not_hold_it(tmp_path):
     seeded.write_text(f"internal note {CANARY}")
 
     frontier = ScriptedSubstrate("frontier", read_file_then_answer(str(seeded)))
-    local = ScriptedSubstrate("local-gpu", [Completion(text_parts=("handled locally",))], local=True)
+    local = ScriptedSubstrate(
+        "local-gpu", [Completion(text_parts=("handled locally",))], local=True
+    )
 
     _, loop, _ = build(
         tmp_path,
-        substrates={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu"), "frontier": frontier},
+        substrates={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu"),
+            "frontier": frontier,
+        },
         files={str(seeded): f"internal note {CANARY}"},
     )
     loop.run("read the note and summarise it")
@@ -273,7 +289,11 @@ def test_a_canary_in_the_prompt_itself_is_treated_as_restricted(tmp_path):
 
     _, loop, _ = build(
         tmp_path,
-        substrates={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu"), "frontier": frontier},
+        substrates={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu"),
+            "frontier": frontier,
+        },
     )
     loop.run(f"what does {CANARY} refer to?")
 
@@ -299,7 +319,11 @@ def test_when_the_local_gpu_dies_restricted_work_is_held_not_rerouted(tmp_path):
 
     enforcement, loop, _ = build(
         tmp_path,
-        substrates={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu"), "frontier": frontier},
+        substrates={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu"),
+            "frontier": frontier,
+        },
         files={str(client_file): "cliente RSSMRA85T10A562S"},
     )
     result = loop.run("summarise the client file")
@@ -317,11 +341,17 @@ def test_when_the_local_gpu_dies_restricted_work_is_held_not_rerouted(tmp_path):
 def test_a_public_task_does_fail_over_within_the_permitted_set(tmp_path):
     """Failover is not disabled — it is bounded. Cost may degrade; jurisdiction may not."""
     frontier = ScriptedSubstrate("frontier", fail=True)
-    local = ScriptedSubstrate("local-gpu", [Completion(text_parts=("local took over",))], local=True)
+    local = ScriptedSubstrate(
+        "local-gpu", [Completion(text_parts=("local took over",))], local=True
+    )
 
     enforcement, loop, _ = build(
         tmp_path,
-        substrates={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu"), "frontier": frontier},
+        substrates={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu"),
+            "frontier": frontier,
+        },
     )
     result = loop.run("summarise the public tender")
 
@@ -389,7 +419,11 @@ def test_a_brief_is_produced_locally_reclassified_and_only_then_crosses(tmp_path
             }
         ),
         ledger_path=tmp_path / "ledger.jsonl",
-        backends={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu", fail=True), "frontier": frontier},
+        backends={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu", fail=True),
+            "frontier": frontier,
+        },
         probe=False,
         fsync=False,
     )
@@ -437,7 +471,11 @@ def test_a_brief_that_still_carries_identifiers_is_held(tmp_path):
             }
         ),
         ledger_path=tmp_path / "ledger.jsonl",
-        backends={"local-gpu": local, "eu-cluster": ScriptedSubstrate("eu", fail=True), "frontier": frontier},
+        backends={
+            "local-gpu": local,
+            "eu-cluster": ScriptedSubstrate("eu", fail=True),
+            "frontier": frontier,
+        },
         probe=False,
         fsync=False,
     )
@@ -477,7 +515,11 @@ def test_an_unknown_tool_is_refused_because_the_policy_never_named_it(tmp_path):
     enforcement = Enforcement.for_run(
         policy=parse_policy(policy_document(tmp_path)),
         ledger_path=tmp_path / "ledger.jsonl",
-        backends={"local-gpu": ScriptedSubstrate("l", local=True), "eu-cluster": ScriptedSubstrate("e"), "frontier": frontier},
+        backends={
+            "local-gpu": ScriptedSubstrate("l", local=True),
+            "eu-cluster": ScriptedSubstrate("e"),
+            "frontier": frontier,
+        },
         probe=False,
         fsync=False,
     )
@@ -495,18 +537,24 @@ def test_a_denied_path_does_not_taint_the_run(tmp_path):
     secret.parent.mkdir(parents=True)
     secret.write_text("PRIVATE KEY")
 
-    frontier = ScriptedSubstrate("frontier", read_file_then_answer(str(secret)) + [Completion(text_parts=("ok",))])
+    frontier = ScriptedSubstrate(
+        "frontier", read_file_then_answer(str(secret)) + [Completion(text_parts=("ok",))]
+    )
     enforcement, loop, tools = build(
         tmp_path,
-        substrates={"local-gpu": ScriptedSubstrate("l", local=True), "eu-cluster": ScriptedSubstrate("e"), "frontier": frontier},
+        substrates={
+            "local-gpu": ScriptedSubstrate("l", local=True),
+            "eu-cluster": ScriptedSubstrate("e"),
+            "frontier": frontier,
+        },
         files={str(secret): "PRIVATE KEY"},
     )
     loop.run("read the key")
 
     assert tools.executed == []
-    assert enforcement.klass is SensitivityClass.PUBLIC, (
-        "a refused read must not raise the class, or refusals become an escalation"
-    )
+    assert (
+        enforcement.klass is SensitivityClass.PUBLIC
+    ), "a refused read must not raise the class, or refusals become an escalation"
 
 
 # ── T7 · the record ───────────────────────────────────────────────────────────
@@ -552,7 +600,9 @@ def test_tampering_with_the_record_of_a_real_run_is_detected(tmp_path):
     path = enforcement.ledger.path
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     rows[0]["substrate"] = "local-gpu"
-    path.write_text("\n".join(json.dumps(r, sort_keys=True, separators=(",", ":")) for r in rows) + "\n")
+    path.write_text(
+        "\n".join(json.dumps(r, sort_keys=True, separators=(",", ":")) for r in rows) + "\n"
+    )
 
     result = verify_file(path)
     assert not result.ok
@@ -564,14 +614,20 @@ def test_tampering_with_the_record_of_a_real_run_is_detected(tmp_path):
 
 def test_with_every_remote_substrate_down_local_work_still_runs(tmp_path):
     """Pull the uplink: the machine keeps working, on-prem only."""
-    local = ScriptedSubstrate("local-gpu", [Completion(text_parts=("answered offline",))], local=True)
+    local = ScriptedSubstrate(
+        "local-gpu", [Completion(text_parts=("answered offline",))], local=True
+    )
 
     enforcement = Enforcement.for_run(
         policy=parse_policy(
             {
                 **policy_document(tmp_path),
                 "rules": [
-                    {"id": "R-restricted", "match": {"class": "restricted"}, "allow": ["local-gpu"]},
+                    {
+                        "id": "R-restricted",
+                        "match": {"class": "restricted"},
+                        "allow": ["local-gpu"],
+                    },
                     {"id": "R-internal", "match": {"class": "internal"}, "allow": ["local-gpu"]},
                     {
                         "id": "R-public",

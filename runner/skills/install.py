@@ -153,9 +153,11 @@ def install_skill(
     _restamp(destination / "SKILL.md", source=folder, trust=trust)
     installed = load_skill(destination / "SKILL.md")
 
-    has_scripts = any(
-        (destination / sub).is_dir() for sub in ("scripts", "bin", "tools")
-    ) or any(destination.glob("*.py")) or any(destination.glob("*.sh"))
+    has_scripts = (
+        any((destination / sub).is_dir() for sub in ("scripts", "bin", "tools"))
+        or any(destination.glob("*.py"))
+        or any(destination.glob("*.sh"))
+    )
 
     return InstalledSkill(
         installed,

@@ -54,6 +54,7 @@ def paths_in_text(text: str) -> tuple[str, ...]:
         if "://" not in match.group(0)
     )
 
+
 _PATH_KEYS = ("path", "file", "filename", "filepath", "directory", "dir", "target", "source")
 """Argument names that carry a filesystem path.
 

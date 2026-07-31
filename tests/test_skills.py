@@ -453,7 +453,9 @@ def test_an_imported_skill_is_pinned_to_the_perimeter_by_default(tmp_path):
     assert installed.pinned
     assert installed.skill.pins_local
     assert installed.skill.floor is RESTRICTED
-    assert "imported, not written here" in (tmp_path / "dest" / "pdf-filler" / "SKILL.md").read_text()
+    assert (
+        "imported, not written here" in (tmp_path / "dest" / "pdf-filler" / "SKILL.md").read_text()
+    )
 
 
 def test_trust_keeps_the_skill_as_its_author_wrote_it(tmp_path):

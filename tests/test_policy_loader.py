@@ -62,9 +62,9 @@ def test_the_default_policy_registers_nothing_remote():
     the file. What they get has to be safe by accident, not by attention.
     """
     policy = default_policy()
-    assert all(sub.distance == 0 for sub in policy.substrates), (
-        "the shipped default must register only on-prem substrates"
-    )
+    assert all(
+        sub.distance == 0 for sub in policy.substrates
+    ), "the shipped default must register only on-prem substrates"
 
 
 def test_default_policy_holds_rather_than_downgrades():

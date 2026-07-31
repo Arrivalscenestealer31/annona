@@ -35,8 +35,9 @@ test-live: ## Run the tests that need a real local model (Ollama must be up)
 test-container: image ## Run the tests that need a Docker daemon
 	ANNONA_CONTAINER_TESTS=1 $(PY) -m pytest -m container -v
 
-lint: ## Lint (ruff)
+lint: ## Lint (ruff): rules and formatting, exactly as CI checks them
 	$(PY) -m ruff check runner tests
+	$(PY) -m ruff format --check runner tests
 
 format: ## Format (ruff)
 	$(PY) -m ruff format runner tests

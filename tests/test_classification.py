@@ -98,7 +98,9 @@ def test_traversal_does_not_escape_classification(classifier, tmp_path):
 
 
 def test_an_identifier_in_content_raises_the_class(classifier):
-    assert classifier.classify_content("il codice è RSSMRA85T10A562S") is SensitivityClass.RESTRICTED
+    assert (
+        classifier.classify_content("il codice è RSSMRA85T10A562S") is SensitivityClass.RESTRICTED
+    )
 
 
 def test_ordinary_content_is_public(classifier):

@@ -79,9 +79,7 @@ class PlacementDecisionEngine:
             return Placement(
                 outcome="held",
                 klass=klass,
-                reason=(
-                    f"no rule covers class {klass.label}, and the policy is default-deny"
-                ),
+                reason=(f"no rule covers class {klass.label}, and the policy is default-deny"),
                 rejected=self._rejected_outside(klass, allowed=()),
             )
 
@@ -140,9 +138,7 @@ class PlacementDecisionEngine:
                 continue
 
             if not substrate.can_hold(klass):
-                rejected.append(
-                    (sid, f"max_class {substrate.max_class.label} < {klass.label}")
-                )
+                rejected.append((sid, f"max_class {substrate.max_class.label} < {klass.label}"))
                 continue
 
             if requirement.tools and not substrate.tools:

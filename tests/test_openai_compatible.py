@@ -201,7 +201,10 @@ def test_malformed_tool_arguments_do_not_end_the_run():
                 {
                     "message": {
                         "tool_calls": [
-                            {"id": "c", "function": {"name": "document_reader", "arguments": "{path: "}}
+                            {
+                                "id": "c",
+                                "function": {"name": "document_reader", "arguments": "{path: "},
+                            }
                         ]
                     }
                 }
@@ -219,7 +222,13 @@ def test_arguments_already_decoded_are_accepted():
     client = FakeClient(
         {
             "choices": [
-                {"message": {"tool_calls": [{"id": "c", "function": {"name": "t", "arguments": {"a": 1}}}]}}
+                {
+                    "message": {
+                        "tool_calls": [
+                            {"id": "c", "function": {"name": "t", "arguments": {"a": 1}}}
+                        ]
+                    }
+                }
             ]
         }
     )

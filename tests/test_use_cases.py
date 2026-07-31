@@ -58,9 +58,7 @@ class Substrate:
         self.received.append(
             request.system
             + "\n"
-            + "\n".join(
-                str(getattr(b, "content", b)) for t in request.transcript for b in t.blocks
-            )
+            + "\n".join(str(getattr(b, "content", b)) for t in request.transcript for b in t.blocks)
         )
         if self._fail:
             from runner.kernel.errors import BackendUnavailableError
@@ -424,9 +422,7 @@ def test_the_toolbox_still_works_and_the_policy_decides_which_part_of_it(tmp_pat
     assert denied and "Permission denied" in str(denied[0].result)
 
     refusals = [
-        e
-        for e in enforcement.ledger.entries()
-        if e.kind == "tool_call" and e.outcome == "held"
+        e for e in enforcement.ledger.entries() if e.kind == "tool_call" and e.outcome == "held"
     ]
     assert refusals, "a denied tool call belongs in the ledger, not only in a log file"
     assert "shell" in str(refusals[0].detail.get("tool", ""))
@@ -444,9 +440,7 @@ def test_the_vault_and_the_sync_engine_are_still_part_of_the_product(tmp_path):
 
     registry = ToolRegistry(
         {
-            "tools": {
-                "enabled": ["filesystem", "shell", "browser", "document_reader", "explorer"]
-            },
+            "tools": {"enabled": ["filesystem", "shell", "browser", "document_reader", "explorer"]},
             "permissions": {"filesystem": {"allowed_paths": [str(tmp_path)]}},
         }
     )
