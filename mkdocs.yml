@@ -12,6 +12,10 @@ site_dir: site
 theme:
   name: material
   language: en
+  # The mascot in the tab and in the header. The favicon is a crop of the head:
+  # the whole figure at 32 px is mud, a helmet with a red crest is not.
+  logo: assets/favicon-512.png
+  favicon: assets/favicon.png
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -80,6 +84,12 @@ markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.details
+  # Material's icon shortcodes (:material-apple:). Without this they render as
+  # literal text, which is how a landing page ends up saying
+  # ":material-microsoft-windows: Windows".
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   # Mermaid: diagrams live in the markdown as source, so they diff and review
   # like code, and render identically on GitHub and on the docs site.
   - pymdownx.superfences:
