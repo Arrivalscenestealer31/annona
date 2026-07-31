@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRunner } from "./hooks/useRunner";
 import { BrainIcon, SyncIcon, TasksIcon, PluginsIcon, SettingsIcon } from "./components/ui/Icons";
-import LogoAkaion from "./components/brand/LogoAkaion";
 import BrainView    from "./components/views/BrainView";
 import SyncView     from "./components/views/SyncView";
 import TasksView    from "./components/views/TasksView";
@@ -143,11 +142,13 @@ export default function App() {
     setShowWelcome(true);
   };
 
+  // Names the state of the daemon, not of a component the user has never heard
+  // of. "Runner" was the product's previous name and means nothing here.
   const statusLabel: Record<string, string> = {
     running: "Daemon active",
-    stopped: "Runner fermo",
-    starting: "Avvio…",
-    error: "Runner error",
+    stopped: "Daemon stopped",
+    starting: "Starting…",
+    error: "Daemon unreachable",
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -175,7 +176,16 @@ export default function App() {
       <aside className="sidebar">
         <div className="ak-sidebar-logo">
           <span className="ak-sidebar-logo__badge">
-            <LogoAkaion variant="glow" size={24} rounded={6} />
+            {/* The mascot rather than the vendor's mark: whoever installed this
+                installed Annona, and the sidebar is the one place they look to
+                know what they are running. */}
+            <img
+              src="/annona-mascot.png"
+              alt=""
+              width={28}
+              height={28}
+              style={{ objectFit: "contain", display: "block" }}
+            />
           </span>
           <div>
             <div className="ak-sidebar-logo__name">Annona</div>
@@ -287,7 +297,7 @@ export default function App() {
       <main className="main">
         {!bootChecked ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-sub)", fontSize: 13 }}>
-            Connessione al runner…
+            Connecting to the daemon…
           </div>
         ) : (
           <>

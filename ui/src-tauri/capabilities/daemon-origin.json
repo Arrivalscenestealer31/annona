@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "daemon-origin",
+  "description": "The interface is served by our own daemon over http://127.0.0.1:7070, which Tauri treats as a remote origin: without this, every `invoke` from the page is denied and the app reports its own daemon as unreachable. Deliberately narrow — core IPC only, so the page can ask the shell how the sidecar is doing. Spawning it, killing it and installing updates stay with the local origin in `default.json`; a page that talked its way onto this port must not inherit the right to execute anything.",
+  "remote": {
+    "urls": ["http://127.0.0.1:7070/*", "http://localhost:7070/*"]
+  },
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

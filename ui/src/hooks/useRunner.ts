@@ -51,10 +51,14 @@ export function useRunner() {
       try {
         const s = await tauriInvoke<TauriRunnerStatus>("runner_status");
         setStatus(s.http_ok ? "running" : s.process_alive ? "starting" : "stopped");
-      } catch {
-        setStatus("error");
+        return;
+      } catch (e) {
+        // Asking the shell failed — the IPC bridge, not the daemon. Since this
+        // page is served *by* the daemon, the honest thing is to ask the daemon
+        // directly rather than paint the status bar red about a process that is
+        // demonstrably answering requests.
+        console.warn("[runner] status via IPC failed, falling back to /health:", e);
       }
-      return;
     }
     try {
       const res = await fetch(`${API_BASE}/health`);
