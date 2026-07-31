@@ -1,7 +1,7 @@
 """
 Runner Daemon
 
-Akaion Runner — local-first second brain with optional one-way push to a
+Annona — local-first second brain with optional one-way push to a
 remote backend. The daemon serves a FastAPI UI on 127.0.0.1:<port> and runs
 no background polling: it never receives tasks from the cloud, it only
 pushes notes the user explicitly creates locally.
@@ -85,12 +85,50 @@ class RunnerDaemon:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
+    @staticmethod
+    def _resolve_log_file(configured: str) -> Path:
+        """Where the log actually goes, never relative to the current directory.
+
+        A relative path is resolved against the runner's home, not against
+        wherever the process happens to have been started. That distinction is
+        not pedantry: launched from a terminal the working directory is a
+        project folder and `logs/runner.log` works; launched from the Dock it is
+        `/`, and the daemon died on startup with
+
+            [Errno 30] Read-only file system: 'logs'
+
+        which is invisible in development and fatal in the packaged app.
+        """
+        path = Path(configured).expanduser()
+        if path.is_absolute():
+            return path
+
+        home = Path(os.getenv("ANNONA_HOME") or os.getenv("AKAION_HOME") or Path.home() / ".annona")
+        return home.expanduser() / path
+
     def _setup_logging(self):
         log_config = self.config.get("logging", {})
         log_level = log_config.get("level", "INFO")
-        log_file = log_config.get("file", "logs/runner.log")
+        log_file = self._resolve_log_file(log_config.get("file", "logs/annona.log"))
 
-        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            # A daemon that cannot write a log still has work to do. Console
+            # logging stays; the file sink is skipped and said so.
+            logger.remove()
+            logger.add(
+                lambda msg: print(msg, end=""),
+                format=(
+                    "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+                    "<level>{level: <8}</level> | <level>{message}</level>"
+                ),
+                level=log_level,
+            )
+            logger.warning(f"cannot write logs to {log_file}; continuing without a log file")
+            if self.dev_mode:
+                logger.info("🔧 Development mode enabled")
+            return
 
         logger.remove()
         logger.add(
@@ -99,7 +137,7 @@ class RunnerDaemon:
             level=log_level,
         )
         logger.add(
-            log_file,
+            str(log_file),
             rotation="1 day",
             retention="7 days",
             level=log_level,
@@ -118,7 +156,7 @@ class RunnerDaemon:
         self.local_api.start()
 
         print_runner_banner()
-        logger.info("🚀 Akaion Runner started")
+        logger.info("🚀 Annona started")
 
         if self._cloud_enabled and self._cloud_authed:
             logger.info("Cloud push enabled — notes can be pushed to remote on demand")
@@ -126,7 +164,7 @@ class RunnerDaemon:
             logger.info("Running in local-only mode (cloud.enabled=false — no remote push)")
         else:
             logger.info(
-                "Running in local-only mode (not authenticated — login via UI or `akaion login`)"
+                "Running in local-only mode (not authenticated — login via UI or `annona login`)"
             )
 
         logger.info("Press Ctrl+C to stop")

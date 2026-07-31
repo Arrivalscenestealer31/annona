@@ -473,3 +473,45 @@ class TestAttachedFailure:
         assert result.response == ""
         assert result.tool_calls == ()
         assert result.iterations == 1
+
+
+# ── The bug that only appears in the packaged app ────────────────────────────
+
+
+def test_a_relative_log_path_resolves_against_the_runner_home_not_the_cwd(tmp_path, monkeypatch):
+    """Launched from the Dock, the working directory is `/`.
+
+    The daemon used to create `logs/` relative to wherever it was started, which
+    works in a terminal and dies with `[Errno 30] Read-only file system: 'logs'`
+    when macOS launches the app — invisible in development, fatal in the bundle.
+    """
+    from runner.main import RunnerDaemon
+
+    monkeypatch.setenv("ANNONA_HOME", str(tmp_path / "home"))
+    resolved = RunnerDaemon._resolve_log_file("logs/annona.log")
+
+    assert resolved.is_absolute()
+    assert str(resolved).startswith(str(tmp_path / "home"))
+
+
+def test_an_absolute_log_path_is_left_alone(tmp_path):
+    from runner.main import RunnerDaemon
+
+    target = tmp_path / "somewhere" / "annona.log"
+    assert RunnerDaemon._resolve_log_file(str(target)) == target
+
+
+def test_the_daemon_starts_even_when_the_log_directory_cannot_be_created(tmp_path, monkeypatch):
+    """A daemon that cannot write a log still has work to do.
+
+    Console logging survives, the file sink is skipped, and the reason is said
+    out loud rather than taking the process down.
+    """
+    from runner.main import RunnerDaemon
+
+    monkeypatch.setenv("ANNONA_HOME", "/dev/null/nope")
+    daemon = RunnerDaemon.__new__(RunnerDaemon)
+    daemon.config = {"logging": {"level": "INFO", "file": "logs/annona.log"}}
+    daemon.dev_mode = False
+
+    daemon._setup_logging()  # must not raise

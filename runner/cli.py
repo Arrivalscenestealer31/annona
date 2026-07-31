@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Akaion Runner CLI
+Annona CLI
 
 Main entry point for managing the local runner.
 """
@@ -42,7 +42,7 @@ from runner.service_urls import resolve_service_url  # noqa: E402
 from runner.sync.engine import SyncEngine  # noqa: E402
 
 app = typer.Typer(
-    name="akaion",
+    name="annona",
     help=f"🛃 {branding.NAME} — {branding.TAGLINE}",
     add_completion=True,
     no_args_is_help=True,
@@ -140,7 +140,7 @@ def init(
         config_manager = ConfigManager()
 
         if interactive:
-            console.print("🔧 [bold]Akaion Runner Setup[/bold]\n")
+            console.print("🔧 [bold]Annona Setup[/bold]\n")
 
             # AI Provider
             ai_provider = typer.prompt(
@@ -206,12 +206,12 @@ def run(
             console.print("ℹ️  [dim]Not signed in — starting in local-only mode.[/dim]")
             console.print("   Open http://127.0.0.1:7070 to use the local vault.")
             console.print("   To sync to the cloud, use the sidebar action in the UI,")
-            console.print("   or run [cyan]akaion login[/cyan].")
+            console.print("   or run [cyan]annona login[/cyan].")
 
         # Load the config
         config_manager = ConfigManager()
         if not config_manager.config_exists():
-            console.print("❌ [red]Configuration not found. Run 'akaion init' first.[/red]")
+            console.print("❌ [red]Configuration not found. Run 'annona init' first.[/red]")
             raise typer.Exit(1)
 
         config = config_manager.load_config()
@@ -225,7 +225,7 @@ def run(
         runner = RunnerDaemon(config, dev_mode=dev, brain_dir=brain_dir, local_port=port)
 
         if daemon:
-            console.print("🚀 [green]Starting Akaion Runner daemon...[/green]")
+            console.print("🚀 [green]Starting the Annona daemon…[/green]")
             console.print(f"Runner ID: [cyan]{auth_manager.get_runner_id()}[/cyan]")
             console.print("\nPress Ctrl+C to stop\n")
             runner.start_daemon()
@@ -257,7 +257,7 @@ def status(
         config_manager = ConfigManager()
 
         # Table
-        table = Table(title="🚀 Akaion Runner Status")
+        table = Table(title="🚀 Annona Status")
         table.add_column("Component", style="cyan")
         table.add_column("Status", style="green")
         table.add_column("Details", style="white")
@@ -401,7 +401,7 @@ def dashboard():
     """
     auth_manager = AuthManager()
     if not auth_manager.is_authenticated():
-        console.print("❌ [red]Not authenticated. Run 'akaion login' first.[/red]")
+        console.print("❌ [red]Not authenticated. Run 'annona login' first.[/red]")
         raise typer.Exit(1)
 
     token = auth_manager.get_firebase_token() or ""
@@ -542,7 +542,7 @@ def _require_auth() -> AuthManager:
     auth = AuthManager()
     if not auth.is_authenticated():
         console.print(
-            "❌ [red]Not signed in.[/red] Run [cyan]akaion login[/cyan] to push to the "
+            "❌ [red]Not signed in.[/red] Run [cyan]annona login[/cyan] to push to the "
             "cloud, or use the sync action in the UI "
             "([cyan]http://127.0.0.1:7070[/cyan])."
         )
@@ -556,7 +556,7 @@ def _build_sync_engine(brain: BrainManager) -> SyncEngine:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# `akaion note ...`
+# `annona note ...`
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -790,7 +790,7 @@ def note_search(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# `akaion sync ...`
+# `annona sync ...`
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -933,7 +933,7 @@ def sync_pull_cmd(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# `akaion cloud ...`  — toggle local vs cloud-sync mode
+# `annona cloud ...`  — toggle local vs cloud-sync mode
 # ──────────────────────────────────────────────────────────────────────────────
 
 cloud_app = typer.Typer(
@@ -955,7 +955,7 @@ def cloud_enable():
         auth = AuthManager()
         if not auth.is_authenticated():
             console.print(
-                "ℹ️  [dim]Not signed in — run [cyan]akaion login[/cyan] "
+                "ℹ️  [dim]Not signed in — run [cyan]annona login[/cyan] "
                 "to finish setting up sync.[/dim]"
             )
     except Exception as e:

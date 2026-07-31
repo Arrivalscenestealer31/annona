@@ -13,20 +13,20 @@ console = Console()
 # Akaion brand colors
 AKAION_GRADIENT = ["#5CBBAE", "#3E9E93", "#2E8279", "#1F6F68"]
 ANNONA_ACCENT = "#5CBBAE"
-AKAION_CYAN = "#00D9FF"
-AKAION_BLUE = "#0066FF"
-AKAION_DARK = "#0033FF"
+AKAION_CYAN = "#5CBBAE"
+AKAION_BLUE = "#3E9E93"
+AKAION_DARK = "#1F6F68"
 
 
 def print_banner():
-    """Print the Akaion banner with brand colors"""
+    """Print the wordmark, in the project's colours."""
     banner = r"""
-    ___    __   __ ___    ____  _   __
-   /   |  / /__/ //   |  /  _/ / | / /
-  / /| | / //_/ // /| |  / /  /  |/ / 
- / ___ |/ ,< / // ___ |_/ /  / /|  /  
-/_/  |_/_/|_/_//_/  |_/___/ /_/ |_/   
-                                       
+   ___    _   _   _  _____  _   _    ___
+  / _ \  | \ | | | ||  _  || \ | |  / _ \
+ / /_\ \ |  \| | | || | | ||  \| | / /_\ \
+ |  _  | | . ` | | || | | || . ` | |  _  |
+ | | | | | |\  | | || |_| || |\  | | | | |
+ \_| |_/ \_| \_/ |_| \___/ \_| \_/ \_| |_/
     """
 
     # Create gradient text
@@ -44,11 +44,12 @@ def print_banner():
 def print_runner_banner():
     """Print the full runner startup banner"""
     banner = r"""
-    ___    __   __ ___    ____  _   __
-   /   |  / /__/ //   |  /  _/ / | / /
-  / /| | / //_/ // /| |  / /  /  |/ / 
- / ___ |/ ,< / // ___ |_/ /  / /|  /  
-/_/  |_/_/|_/_//_/  |_/___/ /_/ |_/   
+   ___    _   _   _  _____  _   _    ___
+  / _ \  | \ | | | ||  _  || \ | |  / _ \
+ / /_\ \ |  \| | | || | | ||  \| | / /_\ \
+ |  _  | | . ` | | || | | || . ` | |  _  |
+ | | | | | |\  | | || |_| || |\  | | | | |
+ \_| |_/ \_| \_/ |_| \___/ \_| \_/ \_| |_/
     """
 
     # Create gradient banner
@@ -62,12 +63,14 @@ def print_runner_banner():
             gradient_text.append(line + "\n", style=f"bold {AKAION_GRADIENT[color_idx]}")
 
     # Subtitle
+    from runner import branding
+
     subtitle = Text()
-    subtitle.append("🚀 ", style="bold yellow")
-    subtitle.append("RUNNER ", style=f"bold {AKAION_CYAN}")
-    subtitle.append("v0.1.0", style=f"dim {AKAION_BLUE}")
-    subtitle.append(" | ", style="dim white")
-    subtitle.append("Local Agent Execution Platform", style=f"italic {AKAION_BLUE}")
+    subtitle.append("🛡️  ", style="bold")
+    subtitle.append(f"{branding.CATEGORY} ", style=f"bold {ANNONA_ACCENT}")
+    subtitle.append("v0.1.0", style="dim")
+    subtitle.append("  ·  ", style="dim white")
+    subtitle.append(branding.TAGLINE, style=f"italic {AKAION_BLUE}")
 
     # Print banner
     console.print()

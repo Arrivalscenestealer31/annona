@@ -205,6 +205,11 @@ customer cannot watch happening.
 
 ---
 
-Built by [Akaion AI Lab](https://akaion.com) on
+**Deploying this in an organisation?** [labs.akaion.com](https://labs.akaion.com) —
+the kernel is open and always will be; what a company usually wants alongside it
+is the policy written against their own folders, the hardware, and somebody who
+answers when it breaks.
+
+Built by [Akaion AI Lab](https://labs.akaion.com) on
 [datapizza-ai](https://github.com/datapizza-labs/datapizza-ai) · interoperates
 with [rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii) · Apache-2.0

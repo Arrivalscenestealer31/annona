@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("offline end-to-end run: ok")
             return 1 if failures else 0
 
-        print(f"\n{BOLD}Akaion Runner — offline demo{RESET}")
+        print(f"\n{BOLD}Annona — offline demo{RESET}")
         print(f"{DIM}no credentials, no model, no network. workspace: {documents}{RESET}")
 
         _narrate(happy, "1 · a task the policy permits")

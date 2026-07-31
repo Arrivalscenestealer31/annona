@@ -26,7 +26,7 @@
 [![DOWNLOAD FOR MACOS](https://img.shields.io/badge/⬇_DOWNLOAD_FOR-MACOS-111?style=for-the-badge)](https://github.com/akaion-ai/annona/releases/latest)
 [![DOWNLOAD FOR LINUX](https://img.shields.io/badge/⬇_DOWNLOAD_FOR-LINUX-8F7320?style=for-the-badge)](https://github.com/akaion-ai/annona/releases/latest)
 
-🌐 **[akaion-ai.github.io/annona](https://akaion-ai.github.io/annona/)** — the site · 🐳 `docker compose up -d` · 🐍 `pip install annona`
+🌐 **[akaion-ai.github.io/annona](https://akaion-ai.github.io/annona/)** — the site · 🏛️ **[labs.akaion.com](https://labs.akaion.com)** — for companies · 🐳 `docker compose up -d` · 🐍 `pip install annona`
 
 🐳 Container · 🖥️ CLI · 🧩 any OpenAI-compatible runtime — *an-NO-na*, the office that kept Rome fed
 
@@ -598,3 +598,10 @@ world does not need a fourth agent framework — it needs the part underneath.
 Apache 2.0 · [`LICENSE`](LICENSE) · [`NOTICE`](NOTICE) · Copyright 2026 Akaion
 
 </div>
+
+---
+
+**Deploying this in an organisation?** [labs.akaion.com](https://labs.akaion.com) —
+the kernel is open and always will be. What a company usually wants alongside it
+is the policy written against their own folders, the hardware, and somebody who
+answers when it breaks.

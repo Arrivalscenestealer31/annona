@@ -147,7 +147,7 @@ class ConfigManager:
                 "network": {"enabled": True},
             },
             "tools": {"enabled": ["filesystem", "shell", "document_reader", "explorer"]},
-            "logging": {"level": "INFO", "file": "logs/runner.log"},
+            "logging": {"level": "INFO", "file": "logs/annona.log"},
             "runner": {
                 "mode": "daemon",
                 "max_concurrent_tasks": 3,

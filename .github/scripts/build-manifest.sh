@@ -3,7 +3,7 @@
 #
 # Expected env (set by GitHub Actions):
 #   GITHUB_REF_NAME    — tag name, e.g. "v0.2.0"
-#   GITHUB_REPOSITORY  — "owner/repo", e.g. "Akaion-repos/akaion-app-runner"
+#   GITHUB_REPOSITORY  — "owner/repo", e.g. "akaion-ai/annona"
 #
 # Usage: build-manifest.sh <assets-dir>
 #

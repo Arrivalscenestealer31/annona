@@ -1,5 +1,5 @@
 """
-Akaion Runner — Interactive Dashboard
+Annona — Interactive Dashboard
 
 TUI interattiva costruita con Textual.
 Layout:
@@ -236,10 +236,10 @@ class BackendsCard(Static):
 
 
 class AkaionDashboard(App):
-    """Dashboard interattiva Akaion Runner."""
+    """Dashboard interattiva Annona."""
 
     CSS = CSS
-    TITLE = "Akaion Runner"
+    TITLE = "Annona"
     BINDINGS = [
         Binding("r", "refresh", "Refresh", show=True),
         Binding("c", "clear_logs", "Clear logs", show=True),
@@ -271,7 +271,7 @@ class AkaionDashboard(App):
         self.sub_title = self._email
         log = self.query_one(RichLog)
         ts = datetime.now().strftime("%H:%M:%S")
-        log.write(f"[#334155]{ts}[/]  Akaion Runner started")
+        log.write(f"[#334155]{ts}[/]  Annona started")
         log.write(f"[#334155]{ts}[/]  Runner ID: [#00d9ff]{self._runner_id}[/]")
         log.write(f"[#334155]{ts}[/]  Checking backends...")
         self.set_interval(1, self._tick)

@@ -67,7 +67,7 @@ def firebase_browser_login(timeout: int = 120) -> dict:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Akaion Runner</title>
+  <title>Annona</title>
   <style>
     *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{
@@ -104,7 +104,7 @@ def firebase_browser_login(timeout: int = 120) -> dict:
 </head>
 <body>
   <div class="card">
-    <span class="logo">Akaion Runner</span>
+    <span class="logo">Annona</span>
     <p class="sub">Connect your local runner<br>to Akaion Cloud.</p>
     <button class="btn" id="btn">
       <svg width="17" height="17" viewBox="0 0 18 18" fill="none">

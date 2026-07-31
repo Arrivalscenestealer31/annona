@@ -62,7 +62,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/Akaion-repos/akaion-app-runner/releases/latest/download/latest.json"
+        "https://github.com/akaion-ai/annona/releases/latest/download/latest.json"
       ],
       "dialog": false,
       "pubkey": "PLACEHOLDER_PUBLIC_KEY_GENERATED_BY_TAURI_SIGNER"
