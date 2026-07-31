@@ -532,6 +532,9 @@ and skip the third entirely. Details in
 | [Architecture as built](docs/design/architecture.md) | only the code that exists today |
 | [Sovereign runtime](docs/design/sovereign-runtime.md) | the threat model in full |
 | [Research](docs/research/index.md) | what we are trying to prove, and the numbers |
+| [Turning the perimeter on](docs/getting-started/perimeter.md) | five minutes from install to watching it refuse |
+| [Skills](docs/skills.md) | the format, the pin, installing Claude's, writing your own |
+| [Deploying](deploy/README.md) | laptop, DGX Spark, your own tenant — and the acceptance run |
 | [Decisions](docs/adr/index.md) | why it is shaped this way, including the ones we reversed |
 | [Casi d'uso](docs/casi-duso.md) 🇮🇹 | the one-pager for the Italian market: what it solves, for whom, and the test behind each claim |
 

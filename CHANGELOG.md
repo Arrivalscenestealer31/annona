@@ -6,6 +6,24 @@ Notable changes to this project. Format based on
 
 ## [Unreleased]
 
+### Documentation caught up with the code
+
+The research programme was still describing four shipped mechanisms as *not
+implemented*, which is the one kind of staleness this project cannot afford: the
+credibility of every other claim rests on the gap table being true. Each section
+now separates the **mechanism** (shipped) from the **measurement** it exists to
+produce (mostly not run), because a control that works on a laptop and a leak
+rate over fifty thousand requests are different claims and only the second is
+research.
+
+New pages: [Skills](docs/skills.md) — the format, when to pin, installing
+Claude's, writing your own — and [Turning the perimeter on](docs/getting-started/perimeter.md),
+five minutes from `policy init` to watching a run be refused, including the two
+things everyone hits first (tools stopped working; everything is held).
+
+The HLD gained §5.6 redaction and §5.7 skills, so the design of record describes
+the design that exists.
+
 ### Skills, with a jurisdiction
 
 Anthropic's Agent Skills format — a folder with `SKILL.md`, front matter plus

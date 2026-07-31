@@ -44,11 +44,13 @@ nav:
       - Install: getting-started/install.md
       - Quickstart: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
+      - Turning the perimeter on: getting-started/perimeter.md
   - Design:
       - High-level design: design/hld.md
       - Architecture as built: design/architecture.md
       - Sovereign runtime: design/sovereign-runtime.md
       - Local interface: design/ui.md
+  - Skills: skills.md
   - Casi d'uso (IT): casi-duso.md
   - Research:
       - research/index.md

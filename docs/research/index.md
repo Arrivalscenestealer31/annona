@@ -11,25 +11,41 @@ cost/privacy frontier**, and **a command they run themselves**.
 This document states what we are trying to prove, how we intend to measure it,
 and what is not built yet. Negative results are published here too.
 
+**Where the programme stands.** Four of the six sections below have shipped: the
+policy kernel, privacy-constrained routing, the leak canary and the verifiable
+trace. What shipped is the *mechanism*; most of the *measurements* they exist to
+produce are still to be run, and each section now says which is which. The
+distinction matters more here than anywhere else in the documentation — a
+mechanism that works on a laptop and a leak rate measured over fifty thousand
+requests are different claims, and only the second one is research.
+
+| § | Mechanism | Measurement |
+|---|---|---|
+| Enforcement | shipped — default-deny, `runner/policy` | injection corpus not run |
+| PCR | shipped — `runner/placement`, 15-case conformance matrix | cost/privacy frontier not measured |
+| Leak canary | shipped — canaries in policy, wiretap in tests | 0 over the acceptance corpus; the 1 000-step run is not done |
+| Trace-as-proof | shipped — hash-chained ledger, `annona verify` | external anchoring open |
+| Local agentic loop | tier 1 shipped — real tool calls from qwen2.5 3B and 14B | grammar-constrained decoding not built; no per-model table |
+| Redacted speculative execution | shipped in its simple form — redact, cross, re-identify | span acceptance and quality delta not measured |
+
 ---
 
 ## § Enforcement — from advisory filter to policy kernel
 
-**Status:** partially implemented, wrong default.
+**Status:** shipped. `runner/policy`, default-deny, and the legacy path kept.
 
-`runner/permissions/manager.py` checks filesystem, shell, network and system
-access on every tool call. Two properties make it advisory rather than
-enforcing:
+The advisory filter is still there for installations without a policy —
+`runner/permissions/manager.py`, which permits any tool it does not recognise
+and reads an empty allow-list as *allow everything*. Writing a policy replaces
+it with `DefaultDenyGate`: a tool that is not named does not run, a named tool
+asked to touch a path outside its allow-list does not run, deny beats allow, and
+symlinks are resolved so a link out of an allowed directory is refused by its
+target. Every decision, including every refusal, is a ledger entry.
 
-- `check_tool_permission()` returns `True` for any tool name it does not
-  recognise (`manager.py:76`). New tools are permitted until someone adds a
-  branch.
-- An empty allow-list in a category means *allow everything* in that category.
-  The safe configuration is the verbose one, which is backwards.
-
-**Target.** Default-deny, capability-based: a tool executes only against an
-explicitly granted capability, and an unknown tool is a denied tool. Denials are
-first-class events in the trace, not warnings in a log file.
+**What is still research.** The *granularity* question is unanswered. Path
+globs and a tool allow-list are expressive enough for a practice and too coarse
+for an enterprise; we do not yet know where the line is that keeps a policy
+auditable in an afternoon. And the metric below has not been run.
 
 **Why it is research and not a patch.** Default-deny is trivial to write and hard
 to ship: it breaks every existing configuration and turns silent over-permission
@@ -47,7 +63,14 @@ advisory policy, default-deny policy.
 
 ## § PCR — Privacy-Constrained Routing
 
-**Status:** not implemented. This is the primary research contribution.
+**Status:** shipped as a mechanism; the frontier it exists to trace is unmeasured.
+
+`runner/placement` decides, per step, from the class of the working set and the
+health of each substrate: 15-case conformance matrix, failover that recomputes
+inside the same rule, and a hold rather than a downgrade when nothing permitted
+is available. What is *not* done is the science — nobody has measured what that
+policy costs in money and latency against the two baselines, which is the whole
+point of calling it a frontier.
 
 Formally: an agent plan is a DAG of steps. Each step's inputs carry sensitivity
 labels estimated by a local classifier. Choose an execution plan — which model,
@@ -74,17 +97,26 @@ Interesting cases, in increasing difficulty:
 - Fraction of tokens retained locally at equal task quality.
 - Quality delta on the vertical benchmark, per data class.
 
-**Precondition.** PCR needs exactly one place in the codebase where content can
-leave the perimeter. Today there are three (one per provider loop) — see
-[Sovereign runtime](../design/sovereign-runtime.md). The loop
-unification is not refactoring hygiene; it is the precondition for this work.
+**Precondition, met.** PCR needs exactly one place where content can leave the
+perimeter. There were three, one per provider loop; there is now one
+(`RoutingBackend`), and five import contracts keep the decision layer from
+reaching an adapter, so a second one cannot appear without failing the build.
 
 ---
 
 ## § Leak canary — measuring what actually escapes
 
-**Status:** not implemented. Highest priority: it is both the metric for PCR and
-the strongest demonstration we can give a customer.
+**Status:** mechanism shipped, corpus not built.
+
+Canaries are declared in the policy (`egress.canaries`) and treated as
+restricted material by definition: finding one in an outbound payload is not a
+signal to weigh, it is a stop. The acceptance run (`make verify`) plants one in
+a client file, lets a real local model read it, and asserts zero at an
+instrumented frontier substrate — nine checks, twenty-five seconds, and the
+number is currently **0 over that corpus**.
+
+That is a demonstration, not a measurement. The measurement needs the corpus
+below, at a scale where a leak rate has a denominator worth quoting.
 
 Seed the corpus with synthetic but realistic identifiers that exist nowhere else
 — IBANs, tax codes, names, case numbers — with known ground truth. Run real
@@ -109,14 +141,18 @@ properties are in tension. We will publish the generator and the tension.
 
 ## § Trace-as-proof — an audit trail you can verify
 
-**Status:** not implemented. Low cost, high commercial return.
+**Status:** shipped, with one claim deliberately not made.
 
-The audit trail should not be a log file but a verifiable artifact: a hash chain,
-signed by Annona's key, recording for each step the declared data
-classification and the egress ledger.
+`runner/audit/ledger.py` is an append-only, hash-chained JSONL record;
+`annona verify` checks it offline and distinguishes a rewritten entry from a
+deleted one, a reordered one and a corrupt line. Payloads are never stored, only
+their digests — a record of sensitive material is still sensitive material.
+`annona why <step>` reconstructs a single decision months later, and
+`annona audit --held` lists every refusal with its reason.
 
-Ship `akaion-verify` as an open tool that anyone runs over a trace and gets a
-yes/no on *"no class-3 data left this perimeter during period X"*.
+**What is not claimed, and is tested as not claimed:** a chain rebuilt from
+scratch by someone with write access is internally consistent and undetectable
+here. That needs an external anchor for the head hash, and it is the open piece.
 
 This turns "don't trust us, verify" from a slogan into a shell command. It is
 also the artifact that aligns with AI Act logging obligations — and a published
@@ -129,18 +165,22 @@ makes agent regression testing possible. See Lab Note 12.
 
 ## § Local agentic loop — can the appliance actually act?
 
-**Status:** not implemented for local models. Design in
-[Sovereign runtime](../design/sovereign-runtime.md).
+**Status:** tier 1 shipped and exercised against real models; tier 2 open.
 
-`reason_and_execute()` (`runner/ai_client.py:376-381`) implements tool use for
-`akaion` (a cloud proxy) and `anthropic` only. With `ai.provider: local` the loop
-degrades to plain chat completion: **fully local mode can talk, but not act.**
+A local model now completes real agentic runs: `OllamaBackend` and
+`OpenAICompatibleBackend` (vLLM, llama.cpp, SGLang) both do native tool calling,
+and the live suite drives qwen2.5 3B and 14B through a full read-then-answer
+task on a laptop. Fully local mode can act.
 
-There is a second, sharper problem. With `provider: akaion` the entire `messages`
-array — including `tool_result` blocks carrying the contents of every file the
-agent read — is sent to `/runner/agent/turn` on each iteration. Tools execute
-locally; the documents travel. Local execution of tools is not local execution of
-the workload, and the distinction has to be stated plainly rather than blurred.
+The second problem — a transcript carrying every file the agent read to whichever
+substrate serves the next turn — is what the working set and per-step placement
+exist to solve, and it is solved: contamination is monotone, and the class of a
+run only goes up.
+
+**What is still open** is the reliability tier. Native tool calling produces
+confidently malformed arguments on small models; the adapter turns that into a
+tool error the model can retry from, which is the loop working as designed and
+not a fix. Grammar-constrained decoding is not built.
 
 **Open questions.**
 
@@ -159,7 +199,17 @@ the workload, and the distinction has to be stated plainly rather than blurred.
 
 ## § Redacted speculative execution
 
-**Status:** exploratory. High risk, high ceiling.
+**Status:** the simple form shipped; the speculative form is still exploratory.
+
+What exists: `on_unavailable: redact`. A local redactor — the first is an
+adapter for [rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii), 0.3B,
+CPU-only, 22 Italian categories — replaces the identifiers, the result is
+**reclassified from scratch**, and only then may it cross; the answer is
+re-identified locally from a mapping that never leaves. A redaction that still
+carries an identifier is held, and a redactor outage holds the step by default.
+
+What is still research is the interesting half: not replacing spans, but having
+the remote model expand only the non-sensitive ones.
 
 For the mixed-sensitivity step: the local model drafts and redacts, the remote
 model verifies and expands **only the non-sensitive spans**, the local model
@@ -200,9 +250,15 @@ reproduce from the outside.
 
 Dependency order, not preference order:
 
-1. **Loop unification** ([Sovereign runtime](../design/sovereign-runtime.md)) — one place where content can leave. Precondition for 2, 3 and 4.
-2. **Leak canary** — the metric. Without it, PCR is an assertion, exactly like today.
-3. **Lab Note 08** — the routing table PCR decides against, and the sizing numbers.
-4. **PCR**, then **trace-as-proof**, then **redacted speculative execution**.
-
-Enforcement (§1) can proceed in parallel; it does not depend on the loop work.
+1. ~~**Loop unification**~~ — done. One place where content can leave, and five
+   contracts that stop a second one appearing.
+2. ~~**Enforcement**, **PCR**, **trace-as-proof**~~ — mechanisms done.
+3. **The corpus.** Fifty thousand requests with seeded canaries, on the vertical
+   workloads, producing a leak rate with a denominator. Everything above is a
+   demonstration until this exists.
+4. **Lab Note 08** — the smallest local model that passes each task class. It is
+   the routing table PCR decides against and the input to appliance sizing, and
+   it needs the DGX to be honest about token/s.
+5. **Grammars** — tier 2 tool calling. The hypothesis to falsify: most local-model
+   tool-use failure is malformed arguments rather than wrong intent.
+6. **Ledger anchoring**, then **speculative redaction**.

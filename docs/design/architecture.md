@@ -19,7 +19,7 @@ so the gap between the two stays visible.
 ├──────────────────────────────────────────────────────────┤
 │  L3  agent         loop · prompt                          │
 ├──────────────────────────────────────────────────────────┤
-│  L2  perimeter     policy · placement · audit             │
+│  L2  perimeter     policy · placement · audit · skills    │
 ├──────────────────────────────────────────────────────────┤
 │  L1  capability    backends/ · tooling · tools · brain    │
 ├──────────────────────────────────────────────────────────┤
@@ -41,6 +41,7 @@ Enforced in CI by `lint-imports` against `.importlinter`:
 | `audit-is-independent` | L2 audit depends on nothing but the kernel |
 | `perimeter-knows-no-adapters` | the decision layer cannot reach an L1 adapter |
 | `perimeter-has-no-vendors` | L2 imports no provider SDK |
+| `skills-know-no-adapters` | a skill cannot reach a backend, which would bypass placement |
 
 The last two are why "the loop is provider-agnostic" is a fact here rather than a
 claim. Breaking one fails the build.

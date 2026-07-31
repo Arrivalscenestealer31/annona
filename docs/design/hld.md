@@ -420,7 +420,68 @@ The same plan, run against a public tender document, places steps 1 and 3 on the
 frontier model and costs a tenth as much. **Same code, same plan, different
 policy verdict.** That is the product in one sentence.
 
-### 5.6 The ledger
+### 5.6 Redaction: the fourth answer
+
+Hold, queue and brief are three ways to *not* send something. The fourth is to
+send it with the identifiers removed and put them back afterwards.
+
+```mermaid
+flowchart LR
+    A["restricted payload"] --> B["local redactor<br/>replaces identifiers"]
+    B --> C["reclassify from scratch"]
+    C --> D{"lower class now?"}
+    D -- no --> E["HELD"]
+    D -- yes --> F["place on the strength<br/>of what it now contains"]
+    F --> G["answer comes back<br/>with placeholders"]
+    G --> H["re-identified locally<br/>from a mapping that never left"]
+
+    classDef bad fill:#fdecec,stroke:#c0392b
+    class E bad
+```
+
+The redactor is a capability, not a policy: the protocol lives in
+`runner/policy/redaction.py` and knows no vendor, and the first implementation is
+an adapter for [rizzo-pii](https://github.com/Rizzo-AI-Academy/rizzo-pii) —
+0.3B, CPU-only, MIT, 22 Italian categories including *codice fiscale*, *partita
+IVA* and cadastral identifiers. It returns the anonymised text together with the
+reverse mapping, and keeps that mapping on the machine.
+
+Three properties make it a control rather than a hope, and each is a test:
+
+- **The output is reclassified from scratch.** A redactor that missed an
+  identifier produces text that merely looks safe. The perimeter treats its
+  output as freshly arrived material — a redaction that is no less sensitive
+  than the original is held.
+- **A redactor outage holds the step** (`redaction.on_error: hold`, the
+  default). A control that disappears under stress is not a control.
+- **The mapping never enters the ledger.** The record says *two identifiers of
+  kind CF and FULLNAME were replaced*, and nothing more.
+
+> **Pseudonymous is not anonymous.** The mapping exists, so re-identification is
+> possible by design. This reduces exposure; it does not remove the need for a
+> lawful basis, and the documentation says so rather than implying otherwise.
+
+### 5.7 Skills: instructions with a jurisdiction
+
+A skill is a folder with a `SKILL.md` — Anthropic's Agent Skills format, kept
+exactly, so instructions move between runtimes. One field is added:
+
+```yaml
+pins: local
+```
+
+Loading a skill that declares it raises the working set **before** the
+instruction is handed to the model, so the rest of the run cannot be placed
+outside the perimeter. The instruction stays portable and boring; the guarantee
+lives in the runtime.
+
+Skills are default-deny like tools, their bodies pass through the classifier
+like any other material, and a disabled skill answers exactly like a
+non-existent one so a model cannot enumerate what an operator declined to
+enable. An imported skill is pinned local until somebody reads it and passes
+`--trust`: prose you did not write is a supply-chain dependency.
+
+### 5.8 The ledger
 
 Append-only, hash-chained, local, and verifiable without contacting anyone:
 
