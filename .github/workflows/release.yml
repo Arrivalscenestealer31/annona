@@ -23,7 +23,11 @@ jobs:
           - os: macos-14            # Apple Silicon runner
             target: aarch64-apple-darwin
             pyinstaller-name: annona-aarch64-apple-darwin
-          - os: macos-13            # Intel runner
+          # Intel macOS: `macos-13` was retired in December 2025 and its label
+          # no longer resolves to a machine — a job asking for it queues until
+          # the run is cancelled, which is exactly how v0.1.0 first stalled.
+          # `macos-15-intel` is the replacement label.
+          - os: macos-15-intel      # Intel runner
             target: x86_64-apple-darwin
             pyinstaller-name: annona-x86_64-apple-darwin
           - os: windows-latest

@@ -6,9 +6,11 @@ export default function UpdateBanner() {
   const { phase, available, progress, error, dismissed, dismiss, installAndRestart } = useUpdater();
 
   // Hide for: web mode (phase stays "idle"), no update found, user-dismissed,
-  // and the "checking" first-load window.
+  // the "checking" first-load window, and a check that could not reach the
+  // manifest — that last one is a fact about the network, not about the app.
   if (dismissed) return null;
   if (phase === "idle" || phase === "checking" || phase === "up-to-date") return null;
+  if (phase === "check-failed") return null;
   if (phase === "available" && !available) return null;
 
   const busy = phase === "downloading" || phase === "installing";

@@ -33,7 +33,8 @@ export type UpdaterPhase =
   | "available"     // update found, awaiting user action
   | "downloading"   // user accepted, download in progress
   | "installing"    // download done, applying
-  | "error";        // check or install failed (non-fatal)
+  | "check-failed"  // could not reach the manifest — never shown to the user
+  | "error";        // an update the user asked for failed to install
 
 // Tauri Update object shape we actually use. Keep a loose type so the build
 // doesn't break if @tauri-apps/plugin-updater isn't installed yet (e.g. on a
@@ -108,11 +109,13 @@ export function useUpdater(): UseUpdaterResult {
       });
       setPhase("available");
     } catch (e: unknown) {
-      // Network failures here are expected (offline, GitHub rate-limit, etc.).
-      // Keep the failure quiet — log to console and leave the UI clean.
+      // A check that fails is not the user's problem: they are offline, GitHub
+      // is rate-limiting, or — as during the beta — no manifest is published
+      // yet. The app works exactly as well either way, so this stays in the
+      // console. Only an update the user *asked* for reaches the screen.
       console.warn("[updater] check failed:", e);
       setError(e instanceof Error ? e.message : String(e));
-      setPhase("error");
+      setPhase("check-failed");
     }
   }, []);
 
