@@ -217,7 +217,12 @@ jobs:
           # `prerelease` is the honest label for an unsigned beta; `draft` is a
           # different statement — "not finished being uploaded".
           draft: false
-          prerelease: true
+          # Not a prerelease either, and this is not vanity: GitHub's `latest`
+          # pointer *skips* prereleases, so `releases/latest/download/<file>`
+          # 404s while the release page itself renders fine — the failure looks
+          # like a broken build and is a flag. The body and the site say "beta,
+          # unsigned" in words, which is where that belongs.
+          prerelease: false
           generate_release_notes: true
           body: |
             ## Annona ${{ github.ref_name }}
