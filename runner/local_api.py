@@ -117,7 +117,7 @@ def create_app(
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "service": "akaion-local"}
+        return {"status": "ok", "service": "annona"}
 
     # ── Auth ──────────────────────────────────────────────────────────────────
 
@@ -326,7 +326,7 @@ class LocalAPIServer:
         self._thread = threading.Thread(
             target=self._server.run,
             daemon=True,
-            name="akaion-local-api",
+            name="annona-local-api",
         )
         self._thread.start()
         # Piccola attesa per lasciar partire uvicorn

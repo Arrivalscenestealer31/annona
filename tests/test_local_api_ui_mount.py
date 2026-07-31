@@ -109,4 +109,4 @@ def test_static_mount_does_not_shadow_api(tmp_path):
     # /health still works
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json()["service"] == "akaion-local"
+    assert r.json()["service"] == "annona"

@@ -11,7 +11,8 @@ from rich.text import Text
 console = Console()
 
 # Akaion brand colors
-AKAION_GRADIENT = ["#00D9FF", "#0099FF", "#0066FF", "#0033FF"]
+AKAION_GRADIENT = ["#5CBBAE", "#3E9E93", "#2E8279", "#1F6F68"]
+ANNONA_ACCENT = "#5CBBAE"
 AKAION_CYAN = "#00D9FF"
 AKAION_BLUE = "#0066FF"
 AKAION_DARK = "#0033FF"
@@ -122,9 +123,16 @@ def print_status_header():
 
 
 def print_simple_logo():
-    """Print a simple one-line logo"""
+    """One line of identity, from the one place that owns it.
+
+    Read from :mod:`runner.branding` rather than typed here, because the point
+    of that module is that renaming the project is one edit — and a hardcoded
+    name in a banner is exactly how a rename ends up half-done and shipped.
+    """
+    from runner import branding
+
     text = Text()
-    text.append("⚡ ", style="bold yellow")
-    text.append("AKAION", style=f"bold {AKAION_CYAN}")
-    text.append(" RUNNER", style=f"bold {AKAION_BLUE}")
+    text.append("🛡️  ", style="bold")
+    text.append(branding.NAME.upper(), style=f"bold {ANNONA_ACCENT}")
+    text.append(f"  {branding.TAGLINE}", style="dim")
     console.print(text)
