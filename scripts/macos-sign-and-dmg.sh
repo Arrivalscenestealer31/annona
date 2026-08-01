@@ -56,14 +56,35 @@ case "$TARGET" in
 esac
 
 DMG="${BUNDLE_DIR}/dmg/Annona_${VERSION}_${ARCH}.dmg"
-STAGE="$(mktemp -d)/Annona"
-mkdir -p "$STAGE" "${BUNDLE_DIR}/dmg"
-cp -R "$APP" "$STAGE/"
+mkdir -p "${BUNDLE_DIR}/dmg"
+
+# `hdiutil create` failed on the Apple Silicon CI runner with "No space left on
+# device": between the Rust target directory, the PyInstaller work tree and a
+# second copy of the app, the disk ran out. None of that intermediate output is
+# needed once the bundle exists, so it goes first. This is also why the app is
+# *moved* into the staging folder rather than copied — on one volume that costs
+# nothing, and it halves the peak.
+echo "→ freeing build intermediates"
+rm -rf build/work dist-sidecar \
+       "ui/src-tauri/target/${TARGET}/release/incremental" \
+       "ui/src-tauri/target/${TARGET}/release/deps" \
+       "ui/src-tauri/target/${TARGET}/release/build"
+df -h . | tail -1
+
+STAGE_ROOT="$(mktemp -d)"
+STAGE="${STAGE_ROOT}/Annona"
+mkdir -p "$STAGE"
+mv "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 
 rm -f "$DMG"
 echo "→ building $DMG"
 hdiutil create -volname "Annona" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
-rm -rf "$(dirname "$STAGE")"
 
-echo "→ done: $DMG"
+# Put the bundle back where it was: the `app` bundle is a release asset in its
+# own right on some platforms, and a step that leaves the tree different from
+# how it found it is a step nobody can run twice.
+mv "$STAGE/Annona.app" "$APP"
+rm -rf "$STAGE_ROOT"
+
+echo "→ done: $DMG ($(du -h "$DMG" | cut -f1))"
