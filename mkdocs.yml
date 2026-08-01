@@ -50,6 +50,7 @@ nav:
       - Configuration: getting-started/configuration.md
       - Turning the perimeter on: getting-started/perimeter.md
       - Executing for a cloud app: cloud-execution.md
+      - Opening it on macOS: getting-started/macos-gatekeeper.md
   - Design:
       - High-level design: design/hld.md
       - Architecture as built: design/architecture.md

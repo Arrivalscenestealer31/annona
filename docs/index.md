@@ -57,7 +57,9 @@ you declare it yourself.
 
     ---
 
-    Apple Silicon and Intel (`.dmg`). Unsigned during beta — right-click → **Open**.
+    Apple Silicon and Intel (`.dmg`). Ad-hoc signed, not notarised during beta:
+    drag to Applications, then **right-click the app → Open** the first time.
+    [Why macOS asks](getting-started/macos-gatekeeper.md)
 
     [Download .dmg](https://github.com/akaion-ai/annona/releases/latest){ .an-btn .an-btn--primary }
 

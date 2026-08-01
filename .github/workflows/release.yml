@@ -118,7 +118,10 @@ jobs:
 
       - name: Build Tauri bundle
         working-directory: ui
-        run: npx tauri build --target ${{ matrix.target }}
+        # macOS builds the .app only; the .dmg is made in the next step, around
+        # a bundle that has been signed. There is no point during `tauri build`
+        # at which the app exists and the dmg does not.
+        run: npx tauri build --target ${{ matrix.target }} ${{ runner.os == 'macOS' && '--bundles app' || '' }}
         env:
           # Signing keys for tauri-plugin-updater. When set, Tauri emits a `.sig`
           # alongside each bundle (.dmg / .exe / .AppImage). The matching public
@@ -128,6 +131,15 @@ jobs:
           # for those bundles, but the build still succeeds.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Sign the app and build the dmg (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        # Ad-hoc, not notarised: it makes Gatekeeper say "unidentified developer"
+        # (which a user can accept) instead of "damaged" (which offers only the
+        # Trash). See the script for why this is not `signingIdentity` in the
+        # Tauri config, and why it must not use `--deep`.
+        run: ./scripts/macos-sign-and-dmg.sh ${{ matrix.target }}
 
       - name: Collect bundle artifacts
         shell: bash
